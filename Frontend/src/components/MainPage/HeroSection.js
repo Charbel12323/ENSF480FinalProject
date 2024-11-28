@@ -38,7 +38,7 @@ const HeroSection = () => {
                 <p className="text-lg md:text-xl mb-6 text-gray-200">
                     <TextGenerateEffect duration={2} filter={false} words={words} />
                 </p>
-                <Link to="/MoviePage">
+                <Link to="/SignUp">
                     <button className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-3 rounded-lg font-bold shadow-lg transition-all duration-300 hover:scale-105">
                         Book Now
                     </button>
