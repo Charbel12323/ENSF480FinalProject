@@ -17,11 +17,11 @@ spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL}
 
 Put the values in a .env file and just call them in application.properties.
 
-For every new ferature for example seats paymentt or tickets create a new folder under the package ENSF480.uofc.Backend and do you implementation there.
+For every new ferature for example seats paymentt or tickets create a new folder under the package ENSF480.uofc.Backend and do your implementation there.
 
 ALso, any dpnedencies needed put in pom.xml.
 
-Finally, to get all teh data needed from the dataabse im going to put all the swl command i did and just copy it. 
+Finally, to get all teh data needed from the dataabse im going to put all the sql command i did and just copy it. 
 
 CREATE TABLE movies (
   movie_id INT NOT NULL AUTO_INCREMENT,
@@ -44,6 +44,15 @@ CREATE TABLE theatres (
   place VARCHAR(100) NOT NULL,
   PRIMARY KEY (theatre_id)
 )
+
+CREATE TABLE Users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    is_guest BOOLEAN DEFAULT FALSE
+);
+
 
 INSERT INTO theatres (name, place) VALUES
 ('Theatre One', 'Downtown'),
@@ -129,4 +138,10 @@ DELIMITER ;
 
 ```
 CALL PopulateShowtimes();
+
+
+After inputting all of this into your database run the backend and start  the front end and you should have everything. 
+
+
+To run the backend: mvn spring-boot:run -X
 
