@@ -2,31 +2,29 @@ package ENSF480.uofc.Backend.Movies;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
+import ENSF480.uofc.Backend.Movies.MovieDTO;
 
 @RestController
 @RequestMapping("/api/movies")
 @CrossOrigin(origins = "http://localhost:3000")
-
 public class MovieController {
 
     @Autowired
-    private MovieRepository movieRepository;
+    private MovieService movieService;
 
     @GetMapping
-    public List<Movie> getAllMovies() {
-        return movieRepository.findAll();
+    public List<MovieDTO> getAllMovies() {
+        return movieService.getAllMovies();
     }
 
     @GetMapping("/{movieId}")
-    public Movie getMovieById(@PathVariable int movieId) {
-        return movieRepository.findById(movieId)
-                .orElseThrow(() -> new RuntimeException("Movie not found"));
+    public MovieDTO getMovieById(@PathVariable int movieId) {
+        return movieService.getMovieById(movieId);
     }
 
     @PostMapping
     public Movie createMovie(@RequestBody Movie movie) {
-        return movieRepository.save(movie);
+        return movieService.createMovie(movie);
     }
 }

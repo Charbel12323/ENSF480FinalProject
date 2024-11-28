@@ -1,8 +1,8 @@
 "use client";
 import React from "react";
-import MovieCard from "./MovieCard"; // Adjust the path based on your file structure
+import SimpleMovieCard from "./SimpleMovieCard";
 import Inception from "../../assets/images/inception.png";
-import InfinityWar from "../../assets/images/InfinityWar.webp";
+import InfinityWar from "../../assets/images/InfinityWar.jpg";
 import intersteller from "../../assets/images/intersteller.webp";
 import { TextGenerateEffect } from "../ui/text-generate-effect";
 import { Link } from 'react-router-dom';
@@ -52,7 +52,7 @@ const HeroSection = () => {
                         key={index}
                         className={`animate-fadeIn delay-${index * 300}`}
                     >
-                        <MovieCard
+                        <SimpleMovieCard
                             title={movie.title}
                             description={movie.description}
                             image={movie.image}
