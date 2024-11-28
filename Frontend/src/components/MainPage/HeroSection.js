@@ -5,6 +5,7 @@ import Inception from "../../assets/images/inception.png";
 import InfinityWar from "../../assets/images/InfinityWar.webp";
 import intersteller from "../../assets/images/intersteller.webp";
 import { TextGenerateEffect } from "../ui/text-generate-effect";
+import { Link } from 'react-router-dom';
 
 const words = `Book your tickets now and dive into the world of cinema.`;
 const HeroSection = () => {
@@ -37,9 +38,11 @@ const HeroSection = () => {
                 <p className="text-lg md:text-xl mb-6 text-gray-200">
                     <TextGenerateEffect duration={2} filter={false} words={words} />
                 </p>
-                <button className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-3 rounded-lg font-bold shadow-lg transition-all duration-300 hover:scale-105">
-                    Book Now
-                </button>
+                <Link to="/MoviePage">
+                    <button className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-3 rounded-lg font-bold shadow-lg transition-all duration-300 hover:scale-105">
+                        Book Now
+                    </button>
+                </Link>
             </div>
 
             {/* Movie Cards */}
