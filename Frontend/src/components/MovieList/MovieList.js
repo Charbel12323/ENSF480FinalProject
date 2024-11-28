@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import MovieCard from "../MainPage/MovieCard";
 
 const MoviesList = () => {
     const [movies, setMovies] = useState([]);
+    const [filteredMovies, setFilteredMovies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [visibleMovies, setVisibleMovies] = useState(6); // Show 12 movies initially
 
     useEffect(() => {
         const fetchMovies = async () => {
             try {
                 const response = await axios.get("http://localhost:8080/api/movies");
-                setMovies(response.data);
+                const moviesData = response.data;
+                setMovies(moviesData);
+                setFilteredMovies(moviesData); // Initially, filtered movies include all movies
                 setLoading(false);
             } catch (err) {
                 setError("Failed to fetch movies. Please try again.");
@@ -20,6 +26,20 @@ const MoviesList = () => {
 
         fetchMovies();
     }, []);
+
+    const handleSearch = (e) => {
+        const query = e.target.value.toLowerCase();
+        setSearchQuery(query);
+        const filtered = movies.filter((movie) =>
+            movie.title.toLowerCase().includes(query)
+        );
+        setFilteredMovies(filtered);
+        setVisibleMovies(12); // Reset visible movies to 12 when searching
+    };
+
+    const showMoreMovies = () => {
+        setVisibleMovies((prevVisible) => prevVisible + 12); // Show 12 more movies on each click
+    };
 
     if (loading) {
         return <div className="text-center mt-10 text-lg text-gray-400">Loading movies...</div>;
@@ -35,27 +55,33 @@ const MoviesList = () => {
                 Movies List
             </h1>
 
+            {/* Search Bar */}
+            <div className="text-center mb-8">
+                <input
+                    type="text"
+                    placeholder="Search for a movie..."
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    className="px-4 py-2 w-80 rounded-lg text-black border-2 border-gray-400 focus:border-yellow-500 outline-none transition-all duration-300"
+                />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 px-6 max-w-7xl mx-auto">
-                {movies.map((movie, index) => (
-                    <div
-                        key={movie.movieId}
-                        className={`bg-gray-800 text-white rounded-lg overflow-hidden shadow-lg transform transition-transform duration-300 hover:scale-105 animate-fadeIn delay-${index * 200}`}
-                    >
-                        <img
-                            src={`http://localhost:8080/${movie.imagePath}`}
-                            alt={movie.title}
-                            className="w-full h-56 object-cover"
-                        />
-                        <div className="p-6">
-                            <h2 className="text-2xl font-bold text-yellow-400">{movie.title}</h2>
-                            <p className="text-gray-400 mt-3 text-sm">{movie.description}</p>
-                            <button className="mt-6 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-gray-900 px-5 py-2 rounded-lg font-bold transition-all duration-300">
-                                View Details
-                            </button>
-                        </div>
-                    </div>
+                {filteredMovies.slice(0, visibleMovies).map((movie) => (
+                    <MovieCard key={movie.movieId} movie={movie} />
                 ))}
             </div>
+
+            {visibleMovies < filteredMovies.length && (
+                <div className="text-center mt-10">
+                    <button
+                        onClick={showMoreMovies}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-black px-8 py-3 rounded-lg font-bold shadow-lg transition-all duration-300 hover:scale-105"
+                    >
+                        Show More
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

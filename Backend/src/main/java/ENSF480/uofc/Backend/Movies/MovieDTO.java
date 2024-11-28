@@ -1,30 +1,29 @@
 package ENSF480.uofc.Backend.Movies;
 
-import jakarta.persistence.*;
-import java.util.Set;
-import ENSF480.uofc.Backend.Showtime.Showtime;
+import java.util.List;
 
-@Entity
-@Table(name = "Movies")
-public class Movie {
+import ENSF480.uofc.Backend.Showtime.ShowtimeDTO;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class MovieDTO {
     private int movieId;
-
-    @Column(nullable = false, length = 100)
     private String title;
-
-    @Column(columnDefinition = "TEXT")
     private String description;
-
-    @Column(length = 255)
     private String imagePath;
+    private List<ShowtimeDTO> showtimes;
 
-    @OneToMany(mappedBy = "movie", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private Set<Showtime> showtimes;
+    // Constructors
+    public MovieDTO() {
+    }
 
-    // Getters and setters
+    public MovieDTO(int movieId, String title, String description, String imagePath, List<ShowtimeDTO> showtimes) {
+        this.movieId = movieId;
+        this.title = title;
+        this.description = description;
+        this.imagePath = imagePath;
+        this.showtimes = showtimes;
+    }
+
+    // Getters and Setters
     public int getMovieId() {
         return movieId;
     }
@@ -57,11 +56,11 @@ public class Movie {
         this.imagePath = imagePath;
     }
 
-    public Set<Showtime> getShowtimes() {
+    public List<ShowtimeDTO> getShowtimes() {
         return showtimes;
     }
 
-    public void setShowtimes(Set<Showtime> showtimes) {
+    public void setShowtimes(List<ShowtimeDTO> showtimes) {
         this.showtimes = showtimes;
     }
 }
