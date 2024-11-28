@@ -82,7 +82,7 @@ INSERT INTO Movies (title, description, image_path) VALUES
 ('The Batman', 'A detective version of the caped crusader confronts corruption.', '/images/batman.jpg'),
 ('Avatar', 'A man explores a new world on the alien planet Pandora.', '/images/avatar.jpg');
 
-
+```sql
 DELIMITER $$
 
 CREATE PROCEDURE PopulateShowtimes()
@@ -93,7 +93,6 @@ BEGIN
     DECLARE showtime_count INT;
     DECLARE showtime_time DATETIME;
 
-    -- Cursor to iterate over movie_ids
     DECLARE movie_cursor CURSOR FOR SELECT movie_id FROM Movies;
     DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
@@ -105,17 +104,13 @@ BEGIN
             LEAVE read_loop;
         END IF;
 
-        -- Loop for each theatre
         SET theatre_id = 1;
         WHILE theatre_id <= 2 DO
-            -- Generate random number of showtimes (2 to 5)
             SET showtime_count = FLOOR(2 + (RAND() * 4));
 
             WHILE showtime_count > 0 DO
-                -- Generate a random date and time for showtime
                 SET showtime_time = CONCAT('2024-12-', LPAD(FLOOR(1 + (RAND() * 15)), 2, '0'), ' ', LPAD(FLOOR(10 + (RAND() * 12)), 2, '0'), ':', LPAD(FLOOR(RAND() * 60), 2, '0'), ':00');
 
-                -- Insert the showtime
                 INSERT INTO Showtimes (movie_id, theatre_id, showtime)
                 VALUES (curr_movie_id, theatre_id, showtime_time);
 
@@ -132,6 +127,6 @@ END$$
 
 DELIMITER ;
 
-
+```
 CALL PopulateShowtimes();
 
