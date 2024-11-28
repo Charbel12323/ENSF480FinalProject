@@ -1,11 +1,6 @@
 package ENSF480.uofc.Backend.Movies;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "Movies")
@@ -24,42 +19,35 @@ public class Movie {
     @Column(length = 255)
     private String imagePath;
 
-    // Getter for movieId
+    // Getters and setters
     public int getMovieId() {
         return movieId;
     }
 
-    // Setter for movieId
     public void setMovieId(int movieId) {
         this.movieId = movieId;
     }
 
-    // Getter for title
     public String getTitle() {
         return title;
     }
 
-    // Setter for title
     public void setTitle(String title) {
         this.title = title;
     }
 
-    // Getter for description
     public String getDescription() {
         return description;
     }
 
-    // Setter for description
     public void setDescription(String description) {
         this.description = description;
     }
 
-    // Getter for imagePath
     public String getImagePath() {
         return imagePath;
     }
 
-    // Setter for imagePath
     public void setImagePath(String imagePath) {
         this.imagePath = imagePath;
     }
