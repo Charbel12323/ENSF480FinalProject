@@ -1,7 +1,10 @@
 package ENSF480.uofc.Backend.users;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import jakarta.servlet.http.HttpSession;
 
 import java.util.Optional;
 
@@ -21,22 +24,47 @@ public class UserController {
 
     // Login a user
     @PostMapping("/login")
-    public String loginUser(@RequestBody User loginDetails) {
+    public ResponseEntity<String> loginUser(@RequestBody User loginDetails, HttpSession session) {
         Optional<User> user = userService.findByEmail(loginDetails.getEmail());
         if (user.isPresent() && user.get().getPassword().equals(loginDetails.getPassword())) {
-            return "Login successful";
+            session.setAttribute("userId", user.get().getUserId());
+            return ResponseEntity.ok("Login successful");
         }
-        return "Invalid email or password";
+        return ResponseEntity.status(401).body("Invalid email or password");
     }
-
-    // Continue as Guest
+    
     @PostMapping("/guest")
-    public User continueAsGuest() {
+    public ResponseEntity<User> continueAsGuest(HttpSession session) {
         User guestUser = new User();
         guestUser.setName("Guest");
         guestUser.setEmail("guest@example.com");
         guestUser.setPassword("guest");
         guestUser.setGuest(true);
-        return userService.registerUser(guestUser);
+    
+        User registeredGuest = userService.registerUser(guestUser);
+    
+        session.setAttribute("userId", registeredGuest.getUserId());
+        return ResponseEntity.ok(registeredGuest);
     }
+    
+    
+    @GetMapping("/me")
+    public ResponseEntity<UserDTO> getCurrentUser(HttpSession session) {
+        Integer userId = (Integer) session.getAttribute("userId");
+    
+        if (userId == null) {
+            return ResponseEntity.status(401).body(null); // No user in session
+        }
+    
+        User currentUser = userService.findById(userId).orElse(null);
+    
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(null);
+        }
+    
+        UserDTO userDTO = new UserDTO(currentUser.getUserId(), currentUser.getName(), currentUser.getEmail(), currentUser.isGuest());
+        return ResponseEntity.ok(userDTO);
+    }
+    
+    
 }

@@ -21,7 +21,7 @@ For every new ferature for example seats paymentt or tickets create a new folder
 
 ALso, any dpnedencies needed put in pom.xml.
 
-Finally, to get all teh data needed from the dataabse im going to put all the sql command i did and just copy it. 
+Finally, to get all the data needed from the database im going to put all the sql command i did and just copy it. 
 
 CREATE TABLE movies (
   movie_id INT NOT NULL AUTO_INCREMENT,
@@ -138,6 +138,100 @@ DELIMITER ;
 
 ```
 CALL PopulateShowtimes();
+
+DELIMITER $$
+
+-- Drop the procedure if it already exists
+DROP PROCEDURE IF EXISTS PopulateSeatsWithReservedChunked$$
+
+-- Create the procedure
+CREATE PROCEDURE PopulateSeatsWithReservedChunked()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE curr_showtime_id INT;
+    DECLARE row_num CHAR(1);
+    DECLARE column_number INT;
+    DECLARE processed_seats INT DEFAULT 0;
+    DECLARE reserved_seat_count INT DEFAULT 0;
+    DECLARE total_seats INT DEFAULT 0;
+
+    DECLARE showtime_cursor CURSOR FOR SELECT showtime_id FROM Showtimes;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN showtime_cursor;
+
+    read_loop: LOOP
+        FETCH showtime_cursor INTO curr_showtime_id;
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        -- Initialize variables for the current showtime
+        SET row_num = 'A';
+        SET processed_seats = 0;
+
+        -- Insert seats row by row
+        WHILE row_num <= 'E' DO
+            SET column_number = 1;
+
+            WHILE column_number <= 6 DO
+                INSERT INTO Seats (row_num, column_number, is_reserved, showtime_id)
+                VALUES (row_num, column_number, 0, curr_showtime_id);
+
+                SET column_number = column_number + 1;
+                SET processed_seats = processed_seats + 1;
+
+                -- Commit every 30 seat inserts to reduce transaction size
+                IF MOD(processed_seats, 30) = 0 THEN
+                    COMMIT;
+                END IF;
+            END WHILE;
+
+            SET row_num = CHAR(ASCII(row_num) + 1); -- Move to the next row
+        END WHILE;
+
+        -- Final commit for all seats of the current showtime
+        COMMIT;
+
+        -- Calculate reserved seats (10%)
+        SET total_seats = processed_seats;
+        SET reserved_seat_count = CEIL(total_seats * 0.10);
+
+        -- Randomly mark seats as reserved
+        WHILE reserved_seat_count > 0 DO
+            UPDATE Seats
+            SET is_reserved = 1
+            WHERE showtime_id = curr_showtime_id AND is_reserved = 0
+            ORDER BY RAND()
+            LIMIT 1;
+
+            SET reserved_seat_count = reserved_seat_count - 1;
+
+            -- Commit every 2 reserved seat updates
+            IF MOD(reserved_seat_count, 2) = 0 THEN
+                COMMIT;
+            END IF;
+        END WHILE;
+
+        -- Final commit after reserving seats
+        COMMIT;
+    END LOOP;
+
+    CLOSE showtime_cursor;
+END$$
+
+DELIMITER ;
+
+-- Call the procedure to populate seats
+CALL PopulateSeatsWithReservedChunked();
+
+to make this work for seats do this 
+
+Edit → Preferences → SQL Editor → DBMS connection read time out (in seconds): 600
+
+Changed the value to 6000.
+
+Also unchecked limit rows as putting a limit in every time I want to search the whole data set gets tiresome.
 
 
 After inputting all of this into your database run the backend and start  the front end and you should have everything. 
