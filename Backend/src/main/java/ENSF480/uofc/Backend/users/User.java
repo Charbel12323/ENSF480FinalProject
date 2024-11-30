@@ -1,11 +1,6 @@
 package ENSF480.uofc.Backend.users;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "Users")
@@ -13,21 +8,22 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id")
     private int userId;
 
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(unique = true, nullable = false, length = 100)
+    @Column(nullable = false, unique = true, length = 100)
     private String email;
 
     @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false)
+    @Column(name = "is_guest", nullable = false)
     private boolean isGuest;
 
-    // Getters and setters
+    // Getters and Setters
     public int getUserId() {
         return userId;
     }
@@ -64,7 +60,7 @@ public class User {
         return isGuest;
     }
 
-    public void setGuest(boolean guest) {
-        isGuest = guest;
+    public void setGuest(boolean isGuest) {
+        this.isGuest = isGuest;
     }
 }
