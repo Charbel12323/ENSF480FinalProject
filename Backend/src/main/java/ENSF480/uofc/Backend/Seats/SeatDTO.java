@@ -5,16 +5,17 @@ public class SeatDTO {
     private String rowNum;
     private int columnNumber;
     private boolean isReserved;
-
+    private int userId;
     // Constructors
     public SeatDTO() {
     }
 
-    public SeatDTO(int seatId, String rowNum, int columnNumber, boolean isReserved) {
+    public SeatDTO(int seatId, String rowNum, int columnNumber, boolean isReserved, int userId) {
         this.seatId = seatId;
         this.rowNum = rowNum;
         this.columnNumber = columnNumber;
         this.isReserved = isReserved;
+        this.userId = userId;
     }
 
     // Getters and Setters
@@ -48,5 +49,13 @@ public class SeatDTO {
 
     public void setReserved(boolean reserved) {
         isReserved = reserved;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 }

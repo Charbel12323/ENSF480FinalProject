@@ -7,6 +7,11 @@ const CinemaSeatMap = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [seats, setSeats] = useState([]);
   const [isGuest, setIsGuest] = useState(false);
+  const [userId, setUserId] = useState(0);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [email, setEmail] = useState("");
+  const [bookingError, setBookingError] = useState("");
+
   const navigate = useNavigate();
   const location = useLocation();
   const { movie, theatre, showtime } = location.state || {};
@@ -18,8 +23,9 @@ const CinemaSeatMap = () => {
     const fetchSeatsAndUser = async () => {
       try {
         // Fetch seats for the selected showtime
+        const showid = showtime.showtimeId;
         const seatResponse = await axios.get(
-          `http://localhost:8080/api/seats/${showtime.showtimeId}`
+          `http://localhost:8080/api/seats/${showid}`
         );
         setSeats(seatResponse.data);
 
@@ -28,8 +34,8 @@ const CinemaSeatMap = () => {
           "http://localhost:8080/api/users/me"
         );
         setIsGuest(userResponse.data.guest);
-
-        console.log("User isGuest:", userResponse.data.guest);
+        setUserId(userResponse.data.id); // Store user ID for booking
+        setEmail(userResponse.data.email);
       } catch (error) {
         console.error("Error fetching seats or user data:", error);
       }
@@ -39,7 +45,12 @@ const CinemaSeatMap = () => {
   }, [showtime]);
 
   // Toggle seat selection
-  const toggleSeat = (seatId, isReserved) => {
+  const toggleSeat = (seatId, isReserved, seatUserId) => {
+    if (seatUserId !== undefined && seatUserId !== null && seatUserId !== 0) {
+      console.warn("Cannot select unavailable seats!");
+      return;
+    }
+
     if (isReserved && isGuest) {
       // Guests cannot select reserved seats
       console.warn("Guests cannot select reserved seats!");
@@ -54,6 +65,27 @@ const CinemaSeatMap = () => {
   };
 
   const totalCost = selectedSeats.length * seatPrice;
+  console.log(seats);
+  console.log(movie);
+  // Handle Proceed to Payment
+  const handleProceedToPayment = () => {
+    setBookingError("");
+
+    if (isGuest && !guestEmail) {
+      setBookingError("Please provide an email address to proceed.");
+      return;
+    }
+
+    // Navigate to payment page with necessary details
+    navigate("/payment", {
+      state: {
+        selectedSeats,
+        totalCost,
+        userId: userId,
+        guestEmail: isGuest ? guestEmail : email,
+      },
+    });
+  };
 
   const columns = [
     { colNum: 1, label: "A" },
@@ -80,8 +112,9 @@ const CinemaSeatMap = () => {
 
         {/* Movie Details Card */}
         <div className="bg-gray-800 rounded-lg p-6 shadow-md">
+        
           <img
-            src={`http://localhost:8080/${movie.imagePath}`}
+            src={`http://localhost:8080${movie.imagePath}`}
             alt={movie.title}
             className="w-full h-auto object-contain rounded-md mb-4"
           />
@@ -145,7 +178,7 @@ const CinemaSeatMap = () => {
                 }
 
                 const seatColumnNumber = col.colNum;
-                const rowLetter = String.fromCharCode(64 + rowNumber); // 1 -> 'A'
+                const rowLetter = String.fromCharCode(64 + rowNumber); // Convert row number to letter (1 -> 'A')
 
                 const seat = seats.find(
                   (s) =>
@@ -158,23 +191,32 @@ const CinemaSeatMap = () => {
                     <div key={`empty-${index}`} className="w-8 h-8"></div>
                   );
 
-                const isSeatReserved = seat.reserved;
                 const isSeatSelected = selectedSeats.includes(seat.seatId);
+                const seatUserId = seat.userId; // Adjust if property name is different
+                const isSeatUnavailable =
+                  seatUserId !== undefined &&
+                  seatUserId !== null &&
+                  seatUserId !== 0;
+                const isSeatReserved = seat.reserved;
 
                 return (
                   <motion.button
                     key={seat.seatId}
                     className={`w-8 h-8 rounded-lg ${
-                      isSeatSelected
+                      isSeatUnavailable
+                        ? "bg-gray-700 cursor-not-allowed"
+                        : isSeatSelected
                         ? "bg-blue-500"
+                        : isSeatReserved && isGuest
+                        ? "bg-gray-700 cursor-not-allowed"
                         : isSeatReserved
-                        ? isGuest
-                          ? "bg-gray-700 cursor-not-allowed"
-                          : "bg-green-500"
+                        ? "bg-green-500"
                         : "bg-white"
                     }`}
-                    disabled={isSeatReserved && isGuest}
-                    onClick={() => toggleSeat(seat.seatId, seat.reserved)}
+                    disabled={isSeatUnavailable || (isSeatReserved && isGuest)}
+                    onClick={() =>
+                      toggleSeat(seat.seatId, seat.reserved, seatUserId)
+                    }
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   />
@@ -236,6 +278,23 @@ const CinemaSeatMap = () => {
             <p>No seats selected</p>
           )}
         </div>
+        {isGuest && (
+          <div className="mb-4">
+            <label htmlFor="guestEmail" className="block text-gray-300 mb-2">
+              Enter your email:
+            </label>
+            <input
+              type="email"
+              id="guestEmail"
+              value={guestEmail}
+              onChange={(e) => setGuestEmail(e.target.value)}
+              className="w-full p-2 rounded-lg text-black"
+            />
+          </div>
+        )}
+        {bookingError && (
+          <p className="text-red-500 mb-4">{bookingError}</p>
+        )}
         <p className="text-lg font-semibold text-yellow-300">
           Total: ${totalCost}
         </p>
@@ -245,9 +304,10 @@ const CinemaSeatMap = () => {
               ? "bg-yellow-500 hover:bg-yellow-600"
               : "bg-gray-600 cursor-not-allowed"
           }`}
+          onClick={handleProceedToPayment}
           disabled={selectedSeats.length === 0}
         >
-          Confirm Booking
+          Proceed to Payment
         </button>
       </div>
     </div>

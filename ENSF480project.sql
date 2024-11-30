@@ -51,13 +51,32 @@ CREATE TABLE Seats (
 );
 
 -- Payments Table
+-- Drop the Payments table if it exists
+DROP TABLE IF EXISTS Payments;
+
+-- Create the Payments table
 CREATE TABLE Payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    payment_number VARCHAR(50) NOT NULL,
-    expiration_date DATE NOT NULL,
-    user_id INT,
+    user_id INT NOT NULL,
+    payment_intent_id VARCHAR(255) UNIQUE NOT NULL, -- Stripe payment intent ID
+    card_last_four_digits VARCHAR(4), -- Last 4 digits of the card
+    expiration_date DATE, -- Optional, to display only in the UI
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the payment was created
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE Transactions (
+    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    payment_intent_id VARCHAR(255) UNIQUE NOT NULL,
+    card_last_four_digits VARCHAR(4),
+    transaction_status ENUM('pending', 'success', 'failed') DEFAULT 'pending',
+    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
+);
+
 
 -- Tickets Table
 CREATE TABLE Tickets (
@@ -70,3 +89,13 @@ CREATE TABLE Tickets (
     FOREIGN KEY (seat_id) REFERENCES Seats(seat_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
+
+ALTER TABLE Payments 
+DROP COLUMN payment_intent_id,
+DROP COLUMN currency,
+DROP COLUMN is_active,
+DROP COLUMN card_number,
+DROP COLUMN cvv,
+DROP COLUMN stripe_payment_id;
+ALTER TABLE Payments MODIFY COLUMN payment_intent_id VARCHAR(255) NULL;
+ALTER TABLE Payments DROP COLUMN last_four_digits;
