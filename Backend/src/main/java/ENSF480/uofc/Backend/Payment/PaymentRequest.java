@@ -1,9 +1,9 @@
 package ENSF480.uofc.Backend.Payment;
 
 public class PaymentRequest {
-    private int amount; // Amount in cents
-    private String currency; // e.g., "usd"
-    private int userId; // Corresponds to the `user_id` in Users table
+    private int amount;
+    private String currency;
+    private int userId;
 
     // Getters and Setters
     public int getAmount() {

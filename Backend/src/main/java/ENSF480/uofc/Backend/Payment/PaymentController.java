@@ -27,8 +27,8 @@ public class PaymentController {
         try {
             String response = paymentService.confirmBooking(request);
             return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(400).body(e.getMessage());
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(400).body("Error: " + e.getMessage());
         }
     }
 }

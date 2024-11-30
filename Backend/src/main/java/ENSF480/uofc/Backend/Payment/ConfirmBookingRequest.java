@@ -3,8 +3,8 @@ package ENSF480.uofc.Backend.Payment;
 import java.util.List;
 
 public class ConfirmBookingRequest {
-    private int userId; // Corresponds to `user_id` in Users table
-    private List<Integer> seatIds; // List of seat IDs to reserve
+    private int userId;
+    private List<Integer> seatIds;
 
     // Getters and Setters
     public int getUserId() {

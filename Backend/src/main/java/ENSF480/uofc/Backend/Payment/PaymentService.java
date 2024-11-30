@@ -4,7 +4,6 @@ import ENSF480.uofc.Backend.Seats.Seat;
 import ENSF480.uofc.Backend.Seats.SeatRepository;
 import ENSF480.uofc.Backend.Ticket.Ticket;
 import ENSF480.uofc.Backend.Ticket.TicketRepository;
-import ENSF480.uofc.Backend.users.UserRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
@@ -29,26 +28,14 @@ public class PaymentService {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
     @PostConstruct
     public void init() {
-        Stripe.apiKey = "sk_test_51QQgDtDUKjAvOoW4eoccwianifHzGXwRzf1e4eckm48dl0OINMEA4QPAuSU8q5r8JvLREzL5IB0ZfWNZN9z7J6Mv00KlUW91N9"; // Replace
-                                                                                                                                       // with
-                                                                                                                                       // Stripe
-                                                                                                                                       // Secret
-                                                                                                                                       // Key
+        Stripe.apiKey = "sk_test_YourStripeSecretKey"; // Replace with your actual secret key
     }
 
     public Map<String, Object> createPaymentIntent(PaymentRequest paymentRequest) {
         Map<String, Object> response = new HashMap<>();
         try {
-            boolean userExists = userRepository.existsById(paymentRequest.getUserId());
-            if (!userExists) {
-                throw new RuntimeException("User ID " + paymentRequest.getUserId() + " does not exist");
-            }
-
             Map<String, Object> params = new HashMap<>();
             params.put("amount", paymentRequest.getAmount());
             params.put("currency", paymentRequest.getCurrency());
@@ -58,7 +45,7 @@ public class PaymentService {
 
             Payment payment = new Payment();
             payment.setPaymentNumber(intent.getId());
-            payment.setAmount(paymentRequest.getAmount() / 100.0);
+            payment.setAmount(paymentRequest.getAmount() / 100.0); // Convert cents to dollars
             payment.setCurrency(paymentRequest.getCurrency());
             payment.setPaymentStatus("pending");
             payment.setPaymentDate(LocalDate.now());
@@ -76,13 +63,19 @@ public class PaymentService {
         Payment latestPayment = paymentRepository.findTopByUserIdOrderByPaymentIdDesc(request.getUserId())
                 .orElseThrow(() -> new RuntimeException("No payment found for user ID: " + request.getUserId()));
 
-        for (int seatId : request.getSeatIds()) {
+        for (Integer seatId : request.getSeatIds()) {
             Seat seat = seatRepository.findById(seatId)
                     .orElseThrow(() -> new RuntimeException("Seat not found with ID: " + seatId));
 
+            if (seat.isReserved()) {
+                throw new RuntimeException("Seat is already reserved: " + seatId);
+            }
+
+            // Reserve the seat
             seat.setReserved(true);
             seatRepository.save(seat);
 
+            // Create a ticket for the reserved seat
             Ticket ticket = new Ticket();
             ticket.setSeat(seat);
             ticket.setShowtime(seat.getShowtime());
