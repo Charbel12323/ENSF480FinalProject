@@ -32,39 +32,47 @@ public class UserController {
         }
         return ResponseEntity.status(401).body("Invalid email or password");
     }
-    
+
     @PostMapping("/guest")
-    public ResponseEntity<User> continueAsGuest(HttpSession session) {
-        User guestUser = new User();
-        guestUser.setName("Guest");
-        guestUser.setEmail("guest@example.com");
-        guestUser.setPassword("guest");
-        guestUser.setGuest(true);
-    
-        User registeredGuest = userService.registerUser(guestUser);
-    
-        session.setAttribute("userId", registeredGuest.getUserId());
-        return ResponseEntity.ok(registeredGuest);
+    public ResponseEntity<?> continueAsGuest(HttpSession session) {
+        try {
+            User guestUser = new User();
+            guestUser.setName("Guest");
+            guestUser.setEmail("guest_" + System.currentTimeMillis() + "@example.com"); // Unique email
+            guestUser.setPassword("guest");
+            guestUser.setGuest(true);
+
+            User registeredGuest = userService.registerUser(guestUser);
+
+            if (registeredGuest == null) {
+                return ResponseEntity.status(500).body("Failed to create guest user");
+            }
+
+            session.setAttribute("userId", registeredGuest.getUserId());
+            return ResponseEntity.ok(registeredGuest);
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the exception
+            return ResponseEntity.status(500).body("An internal server error occurred");
+        }
     }
-    
-    
+
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(HttpSession session) {
         Integer userId = (Integer) session.getAttribute("userId");
-    
+
         if (userId == null) {
             return ResponseEntity.status(401).body(null); // No user in session
         }
-    
+
         User currentUser = userService.findById(userId).orElse(null);
-    
+
         if (currentUser == null) {
             return ResponseEntity.status(401).body(null);
         }
-    
-        UserDTO userDTO = new UserDTO(currentUser.getUserId(), currentUser.getName(), currentUser.getEmail(), currentUser.isGuest());
+
+        UserDTO userDTO = new UserDTO(currentUser.getUserId(), currentUser.getName(), currentUser.getEmail(),
+                currentUser.isGuest());
         return ResponseEntity.ok(userDTO);
     }
-    
-    
+
 }

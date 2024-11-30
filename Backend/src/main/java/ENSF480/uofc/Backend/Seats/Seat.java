@@ -20,7 +20,7 @@ public class Seat {
     @Column(nullable = false)
     private int columnNumber;
 
-    @Column(nullable = false)
+    @Column(name = "is_reserved", nullable = false, columnDefinition = "TINYINT(1) DEFAULT 0")
     private boolean isReserved;
 
     @ManyToOne(fetch = FetchType.LAZY)
