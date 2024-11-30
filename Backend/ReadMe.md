@@ -8,14 +8,16 @@ application.properties is where you add all your private data
 
 Like this 
 
-spring.datasource.url=${SPRING_DATASOURCE_URL}
-spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
-spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
-spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO}
-spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL}
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/ENSF480project
+SPRING_DATASOURCE_USERNAME=root
+SPRING_DATASOURCE_PASSWORD=pass
+SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+SPRING_JPA_HIBERNATE_DDL_AUTO=update
+SPRING_JPA_SHOW_SQL=true
+STRIPE_API_KEY=sk_test_
 
 
-Put the values in a .env file and just call them in application.properties.
+Put the values in a .env file place the env file in the  resources folder in the Backend/src/main and just call them in application.properties.
 
 For every new ferature for example seats paymentt or tickets create a new folder under the package ENSF480.uofc.Backend and do your implementation there.
 
