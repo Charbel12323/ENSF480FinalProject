@@ -4,7 +4,9 @@ import HomePage from './pages/HomePage';
 import MoviesList from './pages/MovieListPage';
 import SignUpPage from './pages/SignupPage';
 import SeatSelectionPage from './pages/SeatSelectionPage';
+import PaymentPage from './pages/PaymentPage';
 import axios from 'axios';
+
 
 axios.defaults.withCredentials = true;
 
@@ -17,7 +19,7 @@ function App() {
         <Route path="/MoviePage" element={<MoviesList />} />
         <Route path="/SignUp" element={<SignUpPage />} />
         <Route path= "/SeatSelection" element={<SeatSelectionPage />} />
-
+        <Route path="/payment" element={<PaymentPage />} />
       </Routes>
     </Router>
 

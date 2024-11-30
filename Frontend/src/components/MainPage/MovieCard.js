@@ -37,7 +37,7 @@ const handleShowtimeClick = (movie, theatre, showtime) => {
     <div className="bg-gray-800 text-white rounded-lg overflow-hidden shadow-lg transform transition-transform duration-300 hover:scale-105">
       {/* Movie Poster */}
       <img
-        src={`http://localhost:8080/${movie.imagePath}`}
+        src={`http://localhost:8080${movie.imagePath}`}
         alt={movie.title}
         className="w-full h-56 object-cover"
       />
