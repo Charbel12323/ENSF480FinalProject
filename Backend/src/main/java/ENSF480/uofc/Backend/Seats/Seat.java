@@ -1,7 +1,10 @@
+// Step 1: Update the Seat Entity to Include Booking Logic
+
 package ENSF480.uofc.Backend.Seats;
 
 import ENSF480.uofc.Backend.Showtime.Showtime;
 import jakarta.persistence.*;
+import java.util.Date;
 
 @Entity
 @Table(name = "Seats")
@@ -23,6 +26,13 @@ public class Seat {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "showtime_id", nullable = false)
     private Showtime showtime;
+
+    @Column
+    private Integer userId;
+
+    @Column
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date reservedAt;
 
     // Getters and Setters
     public int getSeatId() {
@@ -63,5 +73,21 @@ public class Seat {
 
     public void setShowtime(Showtime showtime) {
         this.showtime = showtime;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
+
+    public Date getReservedAt() {
+        return reservedAt;
+    }
+
+    public void setReservedAt(Date reservedAt) {
+        this.reservedAt = reservedAt;
     }
 }
