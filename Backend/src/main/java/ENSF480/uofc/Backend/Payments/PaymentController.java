@@ -1,11 +1,10 @@
 package ENSF480.uofc.Backend.Payments;
 
 import com.stripe.Stripe;
+import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
-import io.github.cdimascio.dotenv.Dotenv;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,44 +13,46 @@ import java.util.Map;
 @RequestMapping("/api/payments")
 public class PaymentController {
 
-    // Inject Stripe API key from environment variable or configuration file
-    private String stripeSecretKey;
-
-    public PaymentController() {
-        Dotenv dotenv = Dotenv.configure().directory("src/main/resources")  // Explicitly point to the resources folder
-        .filename(".env")                 // The name of your .env file
-        .load();
-        this.stripeSecretKey = dotenv.get("STRIPE_API_KEY");
-
-    }
+    // Hardcoded Stripe secret key for testing purposes
+    private final String stripeSecretKey = "sk_test_51QQgDtDUKjAvOoW4eoccwianifHzGXwRzf1e4eckm48dl0OINMEA4QPAuSU8q5r8JvLREzL5IB0ZfWNZN9z7J6Mv00KlUW91N9";
 
     @PostMapping("/create-payment-intent")
     public Map<String, String> createPaymentIntent(@RequestBody Map<String, Object> requestBody) {
-        // Set Stripe API key for this request
+        // Set the Stripe API key
         Stripe.apiKey = stripeSecretKey;
 
         try {
-            // Extract amount and currency from the request body
-            int amount = (int) requestBody.get("amount"); // amount should be in cents
+            // Validate the request payload
+            if (!requestBody.containsKey("amount") || !requestBody.containsKey("currency")) {
+                throw new IllegalArgumentException("Invalid request: 'amount' and 'currency' are required.");
+            }
+
+            int amount = (int) requestBody.get("amount");
+            if (amount <= 0) {
+                throw new IllegalArgumentException("Invalid amount: must be greater than 0.");
+            }
+
             String currency = (String) requestBody.get("currency");
 
-            // Create the payment intent parameters
+            // Create the PaymentIntent
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount((long) amount)  // Stripe expects the amount in cents
+                    .setAmount((long) amount) // Stripe expects the amount in cents
                     .setCurrency(currency)
                     .build();
 
-            // Create the payment intent using Stripe API
             PaymentIntent paymentIntent = PaymentIntent.create(params);
 
-            // Prepare the response with the client secret
+            // Return the client secret to the frontend
             Map<String, String> responseData = new HashMap<>();
             responseData.put("clientSecret", paymentIntent.getClientSecret());
-
             return responseData;
 
+        } catch (StripeException e) {
+            System.err.println("StripeException: " + e.getMessage());
+            throw new RuntimeException("Failed to create PaymentIntent: " + e.getMessage(), e);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create payment intent: " + e.getMessage(), e);
+            System.err.println("Error creating PaymentIntent: " + e.getMessage());
+            throw new RuntimeException("Unexpected error: " + e.getMessage(), e);
         }
     }
 }
