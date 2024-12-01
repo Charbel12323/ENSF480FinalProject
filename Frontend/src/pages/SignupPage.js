@@ -1,5 +1,5 @@
 import React from 'react'
-import SignUpPage from "../components/SignUp/SignUpLoginPage";
+import SignUpPage from "../components/SignUp/SignUpPage";
 const MovieListPage = () => {
     return (
         <div>

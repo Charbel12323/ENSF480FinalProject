@@ -5,6 +5,7 @@ import MoviesList from './pages/MovieListPage';
 import SignUpPage from './pages/SignupPage';
 import SeatSelectionPage from './pages/SeatSelectionPage';
 import PaymentPage from './pages/PaymentPage';
+import LoginPage from './components/SignUp/LoginPage';
 import axios from 'axios';
 
 
@@ -18,8 +19,9 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/MoviePage" element={<MoviesList />} />
         <Route path="/SignUp" element={<SignUpPage />} />
-        <Route path= "/SeatSelection" element={<SeatSelectionPage />} />
+        <Route path="/SeatSelection" element={<SeatSelectionPage />} />
         <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/login" element={<LoginPage />} />
       </Routes>
     </Router>
 
