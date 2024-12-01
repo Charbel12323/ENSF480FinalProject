@@ -9,7 +9,7 @@ const PaymentForm = () => {
   const stripe = useStripe();
   const elements = useElements();
 
-  const { selectedSeats, totalCost, userId, guestEmail } = location.state || {};
+  const { totalCost, isRegistration, seatCount, selectedSeats } = location.state || {};
   const [loading, setLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
@@ -23,27 +23,17 @@ const PaymentForm = () => {
         setCurrentUser(response.data);
       } catch (error) {
         console.error("Error fetching user:", error);
-        setPaymentError("Unable to retrieve user information. Please log in again.");
-        navigate("/login");
+        if (!isRegistration) {
+          setPaymentError("Unable to retrieve user information. Please log in again.");
+          navigate("/login");
+        }
       }
     };
 
-    fetchCurrentUser();
-  }, [navigate]);
-
-  const handleSeatReservation = async () => {
-    try {
-      await axios.post("http://localhost:8080/api/seats/book", {
-        seatIds: selectedSeats,
-        userId: userId,
-        email: guestEmail || currentUser?.email
-      }, {
-        withCredentials: true
-      });
-    } catch (error) {
-      throw new Error("Failed to reserve seats after payment");
+    if (!isRegistration) {
+      fetchCurrentUser();
     }
-  };
+  }, [isRegistration, navigate]);
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
@@ -52,6 +42,16 @@ const PaymentForm = () => {
 
     if (!elements || !stripe) {
       setPaymentError("Stripe has not yet loaded. Please try again later.");
+      setLoading(false);
+      return;
+    }
+
+    const userInfo = isRegistration
+      ? location.state
+      : currentUser;
+
+    if (!userInfo?.name || !userInfo?.email) {
+      setPaymentError("User information is missing. Please ensure you are logged in.");
       setLoading(false);
       return;
     }
@@ -66,11 +66,15 @@ const PaymentForm = () => {
 
     try {
       const paymentIntentResponse = await axios.post(
-        "http://localhost:8080/api/payments/create-payment-intent",
+        isRegistration
+          ? "http://localhost:8080/api/payments/create-registration-payment-intent"
+          : "http://localhost:8080/api/payments/create-payment-intent",
         {
           amount: Math.round(totalCost * 100),
           currency: "usd",
-          email: guestEmail || currentUser?.email,
+          name: userInfo.name,
+          email: userInfo.email,
+          password: isRegistration ? userInfo.password : undefined,
         },
         {
           withCredentials: true
@@ -83,34 +87,72 @@ const PaymentForm = () => {
         payment_method: {
           card: cardElement,
           billing_details: {
-            email: guestEmail || currentUser?.email,
-            name: currentUser?.name,
+            email: userInfo.email,
+            name: userInfo.name,
           },
         },
       });
 
       if (paymentResult.error) {
         setPaymentError(paymentResult.error.message);
+        setLoading(false);
       } else if (paymentResult.paymentIntent.status === "succeeded") {
         console.log("Payment succeeded!");
 
-        // Reserve seats after successful payment
-        await handleSeatReservation();
+        if (isRegistration) {
+          try {
+            await axios.post("http://localhost:8080/api/payments/confirm-registration", {
+              name: userInfo.name,
+              email: userInfo.email,
+              password: userInfo.password,
+            }, {
+              withCredentials: true
+            });
+            navigate("/login");
+          } catch (registrationError) {
+            console.error("Registration Error:", registrationError);
+            setPaymentError("Payment successful but registration failed. Please contact support.");
+          }
+        } else {
+          try {
+            // Book seats first
+            await axios.post("http://localhost:8080/api/seats/book", {
+              seatIds: selectedSeats,
+              userId: currentUser.id,
+              email: userInfo.email
+            }, {
+              withCredentials: true
+            });
 
-        try {
-          await axios.post("http://localhost:8080/api/payments/send-confirmation-email", {
-            email: guestEmail || currentUser?.email,
-            name: currentUser?.name,
-            seatCount: selectedSeats.length
-          }, {
-            withCredentials: true
-          });
-          navigate("/confirmation");
-        } catch (emailError) {
-          console.error("Email Error:", emailError);
-          navigate("/confirmation", {
-            state: { emailError: "Payment successful but confirmation email could not be sent." }
-          });
+            // Send confirmation email
+            await axios.post(
+              "http://localhost:8080/api/payments/send-confirmation-email",
+              {
+                email: userInfo.email,
+                name: userInfo.name,
+                seatCount: selectedSeats.length || seatCount || 1
+              },
+              {
+                withCredentials: true,
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+
+            navigate("/confirmation");
+          } catch (error) {
+            console.error("Error:", error);
+            if (error.response?.status === 500) {
+              navigate("/confirmation", {
+                state: {
+                  emailError: "Payment and seat reservation successful, but confirmation email could not be sent."
+                }
+              });
+            } else {
+              setPaymentError("An error occurred after payment. Please contact support.");
+            }
+          }
         }
       }
     } catch (error) {
@@ -133,6 +175,11 @@ const PaymentForm = () => {
             {paymentError}
           </div>
         )}
+        {!isRegistration && !currentUser && (
+          <div className="mb-4 p-3 bg-yellow-600 rounded-md text-white">
+            Loading user information...
+          </div>
+        )}
         <form onSubmit={handlePaymentSubmit}>
           <div className="mb-6">
             <label className="block text-gray-300 mb-2">Card Details:</label>
@@ -142,9 +189,11 @@ const PaymentForm = () => {
           </div>
           <button
             type="submit"
-            className={`w-full py-2 rounded-lg text-white font-bold ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-yellow-500 hover:bg-yellow-600"
+            className={`w-full py-2 rounded-lg text-white font-bold ${loading || (!isRegistration && !currentUser)
+                ? "bg-gray-600 cursor-not-allowed"
+                : "bg-yellow-500 hover:bg-yellow-600"
               }`}
-            disabled={loading}
+            disabled={loading || (!isRegistration && !currentUser)}
           >
             {loading ? "Processing..." : `Pay $${totalCost}`}
           </button>

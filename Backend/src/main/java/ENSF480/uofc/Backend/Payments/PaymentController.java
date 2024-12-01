@@ -27,7 +27,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PaymentController {
 
     private final String stripeSecretKey;
@@ -47,7 +47,6 @@ public class PaymentController {
         try {
             Stripe.apiKey = stripeSecretKey;
 
-            // Get current user from session
             User currentUser = userService.getCurrentUser();
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -157,11 +156,15 @@ public class PaymentController {
             int seatCount = requestBody.get("seatCount") != null ? ((Number) requestBody.get("seatCount")).intValue()
                     : 1;
 
-            String subject = "Your Seat Purchase Confirmation";
-            String content = "Hello " + currentUser.getName() + ",\n\n" +
-                    "Thank you for your purchase!\n" +
-                    "You have successfully purchased " + seatCount + " seats.\n\n" +
-                    "Best regards,\nThe Team";
+            String subject = "Your Movie Ticket Purchase Confirmation";
+            String content = String.format(
+                    "Hello %s,\n\n" +
+                            "Thank you for your purchase!\n" +
+                            "You have successfully purchased %d ticket(s).\n\n" +
+                            "Please arrive at least 15 minutes before your showtime.\n\n" +
+                            "Best regards,\nThe Cinema Team",
+                    currentUser.getName(),
+                    seatCount);
 
             sendEmail(currentUser.getEmail(), subject, content);
 
