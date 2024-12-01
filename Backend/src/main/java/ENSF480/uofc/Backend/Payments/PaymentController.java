@@ -13,7 +13,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/payment")
+@RequestMapping("/api/payments")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PaymentController {
 
     private final String stripeSecretKey;
@@ -40,11 +41,21 @@ public class PaymentController {
     @PostMapping("/create-payment-intent")
     public ResponseEntity<Map<String, String>> createPaymentIntent(@RequestBody Map<String, Object> requestBody) {
         try {
-            // Extract amount and currency from the request
-            int amount = (int) requestBody.get("amount"); // Amount in cents
-            String currency = (String) requestBody.get("currency");
+            Stripe.apiKey = stripeSecretKey;
 
-            // Create payment intent parameters
+            User currentUser = userService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User not authenticated"));
+            }
+
+            if (!requestBody.containsKey("amount")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Amount is required"));
+            }
+
+            int amount = ((Number) requestBody.get("amount")).intValue();
+
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                     .setAmount((long) amount)
                     .setCurrency(currency)
@@ -94,16 +105,31 @@ public class PaymentController {
         }
     }
 
-    /**
-     * Use an existing payment method for a transaction.
-     * @param paymentMethodId ID of the saved payment method.
-     * @return Response indicating success or failure.
-     */
-    @PostMapping("/use")
-    public ResponseEntity<String> useSavedPaymentMethod(@RequestParam String paymentMethodId) {
+    @PostMapping("/send-confirmation-email")
+    public ResponseEntity<?> sendConfirmationEmail(@RequestBody Map<String, Object> requestBody) {
         try {
-            paymentService.useSavedPaymentMethod(paymentMethodId);
-            return ResponseEntity.ok("Payment method used successfully for the transaction.");
+            User currentUser = userService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User not authenticated"));
+            }
+
+            int seatCount = requestBody.get("seatCount") != null ? ((Number) requestBody.get("seatCount")).intValue()
+                    : 1;
+
+            String subject = "Your Movie Ticket Purchase Confirmation";
+            String content = String.format(
+                    "Hello %s,\n\n" +
+                            "Thank you for your purchase!\n" +
+                            "You have successfully purchased %d ticket(s).\n\n" +
+                            "Please arrive at least 15 minutes before your showtime.\n\n" +
+                            "Best regards,\nThe Cinema Team",
+                    currentUser.getName(),
+                    seatCount);
+
+            sendEmail(currentUser.getEmail(), subject, content);
+
+            return ResponseEntity.ok(Map.of("message", "Email sent successfully"));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error using saved payment method: " + e.getMessage());
         }
