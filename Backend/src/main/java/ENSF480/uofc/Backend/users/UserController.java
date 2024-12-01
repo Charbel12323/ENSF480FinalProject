@@ -58,17 +58,17 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(HttpSession session) {
         Integer userId = (Integer) session.getAttribute("userId");
-    
+
         if (userId == null) {
             return ResponseEntity.status(401).body(null); // No user in session
         }
-    
+
         User currentUser = userService.findById(userId).orElse(null);
-    
+
         if (currentUser == null) {
             return ResponseEntity.status(401).body(null);
         }
-    
+
         UserDTO userDTO = new UserDTO(currentUser.getUserId(), currentUser.getName(), currentUser.getEmail(), currentUser.isGuest());
         return ResponseEntity.ok(userDTO);
     }
