@@ -33,6 +33,7 @@ public class PaymentController {
 
     private final String stripeSecretKey;
     private final String sendGridApiKey;
+    private final SendGrid sendGrid;
 
     @Autowired
     private UserService userService;
@@ -45,6 +46,7 @@ public class PaymentController {
         Dotenv dotenv = Dotenv.configure().directory("src/main/resources").filename(".env").load();
         this.stripeSecretKey = dotenv.get("STRIPE_API_KEY");
         this.sendGridApiKey = dotenv.get("SENDGRID_API_KEY");
+        this.sendGrid = new SendGrid(sendGridApiKey);
     }
 
     @PostMapping("/save-payment-method")
@@ -158,7 +160,7 @@ public class PaymentController {
                         .body(Map.of("error", "Missing or invalid payment parameters"));
             }
 
-            int amount = 2000; // Registration fee in cents ($20)
+            int amount = 2000;
             String currency = "usd";
 
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
@@ -171,7 +173,6 @@ public class PaymentController {
             Map<String, String> responseData = new HashMap<>();
             responseData.put("clientSecret", paymentIntent.getClientSecret());
             return ResponseEntity.ok(responseData);
-
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -196,14 +197,10 @@ public class PaymentController {
                         .body(Map.of("error", "Name, email, and password are required"));
             }
 
-            String name = requestBody.get("name");
-            String email = requestBody.get("email");
-            String password = requestBody.get("password");
-
             User newUser = new User();
-            newUser.setName(name);
-            newUser.setEmail(email);
-            newUser.setPassword(password);
+            newUser.setName(requestBody.get("name"));
+            newUser.setEmail(requestBody.get("email"));
+            newUser.setPassword(requestBody.get("password"));
             newUser.setGuest(false);
 
             userService.registerUser(newUser);
@@ -218,53 +215,47 @@ public class PaymentController {
     @PostMapping("/send-confirmation-email")
     public ResponseEntity<?> sendConfirmationEmail(@RequestBody Map<String, Object> requestBody) {
         try {
-            User currentUser = userService.getCurrentUser();
-            if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "User not authenticated"));
+            if (requestBody == null || !requestBody.containsKey("email") || !requestBody.containsKey("name")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Email and name are required"));
             }
 
+            String recipientEmail = (String) requestBody.get("email");
+            String recipientName = (String) requestBody.get("name");
             int seatCount = requestBody.get("seatCount") != null ? ((Number) requestBody.get("seatCount")).intValue()
                     : 1;
 
             String subject = "Your Movie Ticket Purchase Confirmation";
-            String content = String.format(
+            String contentText = String.format(
                     "Hello %s,\n\n" +
                             "Thank you for your purchase!\n" +
                             "You have successfully purchased %d ticket(s).\n\n" +
                             "Please arrive at least 15 minutes before your showtime.\n\n" +
                             "Best regards,\nThe Cinema Team",
-                    currentUser.getName(),
+                    recipientName,
                     seatCount);
 
-            sendEmail(currentUser.getEmail(), subject, content);
+            Email from = new Email("mcharbe439@gmail.com");
+            Email to = new Email(recipientEmail);
+            Content content = new Content("text/plain", contentText);
+            Mail mail = new Mail(from, subject, to, content);
+
+            Request request = new Request();
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+
+            Response response = sendGrid.api(request);
+
+            if (response.getStatusCode() >= 400) {
+                throw new IOException("Failed to send email. Status code: " + response.getStatusCode());
+            }
 
             return ResponseEntity.ok(Map.of("message", "Email sent successfully"));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to send confirmation email: " + e.getMessage()));
-        }
-    }
-
-    private void sendEmail(String recipientEmail, String subject, String content) throws IOException {
-        Email from = new Email("mcharbe439@gmail.com"); // Replace with your verified sender email
-        Email to = new Email(recipientEmail);
-        Content emailContent = new Content("text/plain", content);
-        Mail mail = new Mail(from, subject, to, emailContent);
-
-        SendGrid sg = new SendGrid(sendGridApiKey);
-        Request request = new Request();
-
-        request.setMethod(Method.POST);
-        request.setEndpoint("mail/send");
-        request.setBody(mail.build());
-
-        Response response = sg.api(request);
-
-        if (response.getStatusCode() >= 400) {
-            throw new IOException("Failed to send email. Status code: " + response.getStatusCode() +
-                    " Body: " + response.getBody());
         }
     }
 }
