@@ -15,16 +15,13 @@ public class PaymentService {
      * Save a new payment method to the database.
      * @param paymentDTO Data Transfer Object containing payment details.
      */
-    public void savePayment(PaymentDTO paymentDTO) {
-        // Create a new Payment entity
+    public Payment savePayment(PaymentDTO paymentDTO) {
         Payment payment = new Payment();
         payment.setUserId(paymentDTO.getUserId());
         payment.setPaymentMethodId(paymentDTO.getPaymentMethodId());
         payment.setCardLastFourDigits(paymentDTO.getCardLastFourDigits());
         payment.setExpirationDate(paymentDTO.getExpirationDate());
-
-        // Save the payment entity to the database
-        paymentRepository.save(payment);
+        return paymentRepository.save(payment);
     }
 
     /**
@@ -34,5 +31,23 @@ public class PaymentService {
      */
     public List<Payment> getPaymentsByUserId(int userId) {
         return paymentRepository.findByUserId(userId);
+    }
+
+    /**
+     * Use a saved payment method for a transaction.
+     * @param paymentMethodId ID of the saved payment method.
+     */
+    public void useSavedPaymentMethod(String paymentMethodId) {
+        // Find the payment method by ID
+        Payment payment = paymentRepository.findByPaymentMethodId(paymentMethodId);
+        if (payment == null) {
+            throw new RuntimeException("Payment method not found.");
+        }
+
+        // Simulate the use of the payment method
+        System.out.println("Using saved payment method: " + paymentMethodId);
+
+        // Implement any additional logic for processing the transaction if needed.
+        // For example, you could call a Stripe API to reuse the payment method.
     }
 }

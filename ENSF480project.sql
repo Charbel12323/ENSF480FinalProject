@@ -50,6 +50,8 @@ CREATE TABLE Seats (
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE SET NULL
 );
 
+
+
 -- Payments Table
 -- Drop the Payments table if it exists
 DROP TABLE IF EXISTS Payments;
@@ -64,6 +66,8 @@ CREATE TABLE Payments (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the payment was created
     FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
 );
+
+yipper
 
 CREATE TABLE Transactions (
     transaction_id INT AUTO_INCREMENT PRIMARY KEY,

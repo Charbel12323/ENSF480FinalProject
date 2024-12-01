@@ -4,7 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+
 import java.util.List;
+
+
 
 @RestController
 @RequestMapping("/api/transaction")
@@ -19,15 +22,19 @@ public class TransactionController {
      * @return Response with the created transaction.
      */
     @PostMapping("/create")
-    public ResponseEntity<Transaction> createTransaction(@RequestBody TransactionDTO transactionDTO) {
+    public ResponseEntity<?> createTransaction(@RequestBody TransactionDTO transactionDTO) {
         try {
             Transaction transaction = transactionService.createTransaction(transactionDTO);
             return ResponseEntity.ok(transaction);
+        } catch (IllegalArgumentException e) {
+            ErrorResponse errorResponse = new ErrorResponse("Invalid input: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(null);
+            ErrorResponse errorResponse = new ErrorResponse("Error creating transaction: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
-
+    
     /**
      * Update the status of a transaction.
      * @param transactionId ID of the transaction to update.
@@ -35,12 +42,20 @@ public class TransactionController {
      * @return Response indicating success or failure.
      */
     @PutMapping("/{transactionId}/status")
-    public ResponseEntity<String> updateTransactionStatus(@PathVariable int transactionId, @RequestParam String status) {
+    public ResponseEntity<?> updateTransactionStatus(
+            @PathVariable int transactionId,
+            @RequestBody TransactionStatusUpdateDTO updateDTO) {
         try {
-            transactionService.updateTransactionStatus(transactionId, status);
-            return ResponseEntity.ok("Transaction status updated successfully.");
+            transactionService.updateTransactionStatus(
+                transactionId, 
+                updateDTO.getStatus(),
+                updateDTO.getPaymentId()
+            );
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error updating transaction status: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(new ErrorResponse(e.getMessage()));
         }
     }
 

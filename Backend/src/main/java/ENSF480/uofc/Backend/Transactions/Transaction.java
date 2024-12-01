@@ -17,7 +17,7 @@ public class Transaction {
     private int userId; // Links the transaction to a specific user
 
     @ManyToOne
-    @JoinColumn(name = "payment_id", nullable = false)
+    @JoinColumn(name = "payment_id", nullable = true)
     private Payment payment; // Links the transaction to a saved payment method
 
     @Column(nullable = false, precision = 10, scale = 2)
