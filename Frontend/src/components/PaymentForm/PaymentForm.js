@@ -66,35 +66,19 @@ const PaymentForm = () => {
     let transactionId;
 
     try {
-      // Create initial transaction record
-      const transactionResponse = await axios.post(
-        "http://localhost:8080/api/transaction/create",
-        {
-          userId: currentUser.id,
-          totalAmount: totalCost,
-          currency: "usd",
-          transactionStatus: "pending",
-        },
-        { withCredentials: true }
-      );
-      transactionId = transactionResponse.data.transactionId;
-
-      // Create payment method if the user opts to save the card
-      let paymentMethod;
-      if (saveCard && !isRegistration) {
-        const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
-          type: "card",
-          card: cardElement,
-          billing_details: {
-            email: userInfo.email,
-            name: userInfo.name,
+      // Create initial transaction record (only for ticket payments, not registration)
+      if (!isRegistration) {
+        const transactionResponse = await axios.post(
+          "http://localhost:8080/api/transaction/create",
+          {
+            userId: currentUser.id,
+            totalAmount: totalCost,
+            currency: "usd",
+            transactionStatus: "pending",
           },
-        });
-
-        if (error) {
-          throw error;
-        }
-        paymentMethod = stripePaymentMethod;
+          { withCredentials: true }
+        );
+        transactionId = transactionResponse.data.transactionId;
       }
 
       // Create payment intent
@@ -116,15 +100,13 @@ const PaymentForm = () => {
 
       // Confirm payment
       const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: paymentMethod
-          ? paymentMethod.id
-          : {
-              card: cardElement,
-              billing_details: {
-                email: userInfo.email,
-                name: userInfo.name,
-              },
-            },
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            email: userInfo.email,
+            name: userInfo.name,
+          },
+        },
       });
 
       if (paymentResult.error) {
@@ -133,30 +115,6 @@ const PaymentForm = () => {
 
       if (paymentResult.paymentIntent.status === "succeeded") {
         console.log("Payment succeeded!");
-
-        // Save the card if applicable
-        if (saveCard && paymentMethod && !isRegistration) {
-          const paymentResponse = await axios.post(
-            "http://localhost:8080/api/payments/save-payment-method",
-            {
-              paymentMethodId: paymentMethod.id,
-              last4: paymentMethod.card.last4,
-              expirationMonth: paymentMethod.card.exp_month.toString(),
-              expirationYear: paymentMethod.card.exp_year.toString(),
-            },
-            { withCredentials: true }
-          );
-          console.log(paymentResponse.data);
-          // Update transaction with payment success and payment ID
-          await axios.put(
-            `http://localhost:8080/api/transaction/${transactionId}/status`,
-            {
-              status: "success",
-              paymentId: paymentResponse.data.paymentId,
-            },
-            { withCredentials: true }
-          );
-        }
 
         if (isRegistration) {
           try {
@@ -212,7 +170,7 @@ const PaymentForm = () => {
         }
       }
     } catch (error) {
-      // Update transaction to failed status
+      // Update transaction to failed status (only for ticket payments)
       if (transactionId) {
         try {
           await axios.put(
@@ -269,11 +227,10 @@ const PaymentForm = () => {
           )}
           <button
             type="submit"
-            className={`w-full py-2 rounded-lg text-white font-bold ${
-              loading || (!isRegistration && !currentUser)
+            className={`w-full py-2 rounded-lg text-white font-bold ${loading || (!isRegistration && !currentUser)
                 ? "bg-gray-600 cursor-not-allowed"
                 : "bg-yellow-500 hover:bg-yellow-600"
-            }`}
+              }`}
             disabled={loading || (!isRegistration && !currentUser)}
           >
             {loading ? "Processing..." : `Pay $${totalCost}`}
