@@ -7,7 +7,7 @@ import SeatSelectionPage from './pages/SeatSelectionPage';
 import PaymentPage from './pages/PaymentPage';
 import LoginPage from './components/SignUp/LoginPage';
 import axios from 'axios';
-
+import Account from './components/MyAccount/MyAccount';
 
 axios.defaults.withCredentials = true;
 
@@ -22,6 +22,7 @@ function App() {
         <Route path="/SeatSelection" element={<SeatSelectionPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/account/:userId" element={<Account />} />
       </Routes>
     </Router>
 

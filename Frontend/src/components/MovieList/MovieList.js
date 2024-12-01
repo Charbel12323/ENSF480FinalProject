@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import MovieCard from "../MainPage/MovieCard";
+import { Link } from "react-router-dom";
 
 const MoviesList = () => {
     const [movies, setMovies] = useState([]);
@@ -8,7 +9,8 @@ const MoviesList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const [visibleMovies, setVisibleMovies] = useState(6); // Show 12 movies initially
+    const [visibleMovies, setVisibleMovies] = useState(6);
+    const [userId, setUserId] = useState(null);
 
     useEffect(() => {
         const fetchMovies = async () => {
@@ -16,7 +18,7 @@ const MoviesList = () => {
                 const response = await axios.get("http://localhost:8080/api/movies");
                 const moviesData = response.data;
                 setMovies(moviesData);
-                setFilteredMovies(moviesData); // Initially, filtered movies include all movies
+                setFilteredMovies(moviesData);
                 setLoading(false);
             } catch (err) {
                 setError("Failed to fetch movies. Please try again.");
@@ -24,7 +26,19 @@ const MoviesList = () => {
             }
         };
 
+        const fetchUser = async () => {
+            try {
+                const response = await axios.get("http://localhost:8080/api/users/me", {
+                    withCredentials: true,
+                });
+                setUserId(response.data.id);
+            } catch (err) {
+                console.error("Failed to fetch user:", err);
+            }
+        };
+
         fetchMovies();
+        fetchUser();
     }, []);
 
     const handleSearch = (e) => {
@@ -34,11 +48,11 @@ const MoviesList = () => {
             movie.title.toLowerCase().includes(query)
         );
         setFilteredMovies(filtered);
-        setVisibleMovies(12); // Reset visible movies to 12 when searching
+        setVisibleMovies(6);
     };
 
     const showMoreMovies = () => {
-        setVisibleMovies((prevVisible) => prevVisible + 12); // Show 12 more movies on each click
+        setVisibleMovies((prevVisible) => prevVisible + 6);
     };
 
     if (loading) {
@@ -51,11 +65,11 @@ const MoviesList = () => {
 
     return (
         <div className="bg-gradient-to-b from-gray-900 via-gray-800 to-black min-h-screen py-10 text-white">
+            <Navbar userId={userId} />
             <h1 className="text-center text-4xl md:text-6xl font-extrabold mb-12 text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-pink-500 to-red-500 drop-shadow-lg">
                 Movies List
             </h1>
 
-            {/* Search Bar */}
             <div className="text-center mb-8">
                 <input
                     type="text"
@@ -83,6 +97,21 @@ const MoviesList = () => {
                 </div>
             )}
         </div>
+    );
+};
+
+const Navbar = ({ userId }) => {
+    return (
+        <nav className="bg-gray-900 text-white px-6 py-4 flex justify-between items-center">
+            <div className="text-2xl font-bold">
+                <Link to="/">MovieApp</Link>
+            </div>
+            <div>
+                <Link to={`/account/${userId}`} className="hover:text-yellow-500 transition duration-300">
+                    <span className="material-icons text-3xl">account_circle</span>
+                </Link>
+            </div>
+        </nav>
     );
 };
 

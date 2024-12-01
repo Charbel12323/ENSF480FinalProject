@@ -3,11 +3,7 @@ package ENSF480.uofc.Backend.Transactions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-
 import java.util.List;
-
-
 
 @RestController
 @RequestMapping("/api/transaction")
@@ -18,6 +14,7 @@ public class TransactionController {
 
     /**
      * Create a new transaction.
+     * 
      * @param transactionDTO Data Transfer Object containing transaction details.
      * @return Response with the created transaction.
      */
@@ -34,11 +31,13 @@ public class TransactionController {
             return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
-    
+
     /**
      * Update the status of a transaction.
+     * 
      * @param transactionId ID of the transaction to update.
-     * @param status New status for the transaction (e.g., success, failed).
+     * @param updateDTO     Data Transfer Object containing new status and optional
+     *                      paymentId.
      * @return Response indicating success or failure.
      */
     @PutMapping("/{transactionId}/status")
@@ -47,11 +46,10 @@ public class TransactionController {
             @RequestBody TransactionStatusUpdateDTO updateDTO) {
         try {
             transactionService.updateTransactionStatus(
-                transactionId, 
-                updateDTO.getStatus(),
-                updateDTO.getPaymentId()
-            );
-            return ResponseEntity.ok().build();
+                    transactionId,
+                    updateDTO.getStatus(),
+                    updateDTO.getPaymentId());
+            return ResponseEntity.ok().body("Transaction status updated successfully.");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
@@ -61,6 +59,7 @@ public class TransactionController {
 
     /**
      * Retrieve all transactions for a user.
+     * 
      * @param userId ID of the user.
      * @return List of transactions for the user.
      */

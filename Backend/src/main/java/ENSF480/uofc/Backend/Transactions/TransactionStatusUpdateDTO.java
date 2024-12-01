@@ -1,10 +1,10 @@
 package ENSF480.uofc.Backend.Transactions;
 
-// Create a DTO for the status update request
 public class TransactionStatusUpdateDTO {
     private String status;
-    private Integer paymentId;
+    private String paymentId; // Optional
 
+    // Getters and Setters
     public String getStatus() {
         return status;
     }
@@ -13,11 +13,11 @@ public class TransactionStatusUpdateDTO {
         this.status = status;
     }
 
-    public Integer getPaymentId() {
+    public String getPaymentId() {
         return paymentId;
     }
 
-    public void setPaymentId(Integer paymentId) {
+    public void setPaymentId(String paymentId) {
         this.paymentId = paymentId;
     }
 }

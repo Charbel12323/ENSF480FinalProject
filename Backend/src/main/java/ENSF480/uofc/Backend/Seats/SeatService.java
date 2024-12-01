@@ -3,9 +3,9 @@ package ENSF480.uofc.Backend.Seats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.stream.Collectors;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SeatService {
@@ -16,8 +16,12 @@ public class SeatService {
     public List<SeatDTO> getSeatsByShowtime(int showtimeId) {
         List<Seat> seats = seatRepository.findByShowtimeShowtimeId(showtimeId);
         return seats.stream()
-                .map(seat -> new SeatDTO(seat.getSeatId(), seat.getRowNum(), seat.getColumnNumber(),
-                        seat.isReserved(), seat.getUserId() != null ? seat.getUserId() : 0))
+                .map(seat -> new SeatDTO(
+                        seat.getSeatId(),
+                        seat.getRowNum(),
+                        seat.getColumnNumber(),
+                        seat.isReserved(),
+                        seat.getUserId() != null ? seat.getUserId() : 0))
                 .collect(Collectors.toList());
     }
 
@@ -27,14 +31,16 @@ public class SeatService {
 
         // Verify no seats are already taken
         for (Seat seat : seats) {
-            if (seat.isReserved() || seat.getUserId() != null) {
+            if (seat.getUserId() != null) {
                 throw new IllegalStateException("One or more seats are already reserved!");
+            }
+            if (seat.isReserved() && userId == 0) { // Guests cannot book reserved seats
+                throw new IllegalStateException("One or more seats are reserved for registered users!");
             }
         }
 
         // Book all seats
         for (Seat seat : seats) {
-            seat.setReserved(true);
             seat.setUserId(userId);
             seat.setReservedAt(new Date());
         }
@@ -47,7 +53,6 @@ public class SeatService {
         List<Seat> seats = seatRepository.findAllById(seatIds);
 
         for (Seat seat : seats) {
-            seat.setReserved(false);
             seat.setUserId(null);
             seat.setReservedAt(null);
         }
