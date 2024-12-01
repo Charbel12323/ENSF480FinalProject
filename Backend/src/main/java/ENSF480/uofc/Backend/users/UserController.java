@@ -3,7 +3,7 @@ package ENSF480.uofc.Backend.users;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.Map;
 import jakarta.servlet.http.HttpSession;
 
 import java.util.Optional;
@@ -34,10 +34,16 @@ public class UserController {
     }
     
     @PostMapping("/guest")
-    public ResponseEntity<User> continueAsGuest(HttpSession session) {
+    public ResponseEntity<User> continueAsGuest(@RequestBody Map<String, String> requestBody, HttpSession session) {
+        String email = requestBody.get("email");
+    
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body(null); // Handle missing email
+        }
+    
         User guestUser = new User();
         guestUser.setName("Guest");
-        guestUser.setEmail("guest@example.com");
+        guestUser.setEmail(email);
         guestUser.setPassword("guest");
         guestUser.setGuest(true);
     
@@ -46,6 +52,7 @@ public class UserController {
         session.setAttribute("userId", registeredGuest.getUserId());
         return ResponseEntity.ok(registeredGuest);
     }
+    
     
     
     @GetMapping("/me")

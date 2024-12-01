@@ -3,13 +3,26 @@ package ENSF480.uofc.Backend.Payments;
 import com.stripe.Stripe;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.sendgrid.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.github.cdimascio.dotenv.Dotenv;
+import ENSF480.uofc.Backend.users.User;
+import ENSF480.uofc.Backend.users.UserService;
 
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
+
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -18,28 +31,21 @@ import java.util.Map;
 public class PaymentController {
 
     private final String stripeSecretKey;
-    private final PaymentService paymentService;
+    private final String sendGridApiKey;
+    private final SendGrid sendGrid;
 
     @Autowired
-    public PaymentController(PaymentService paymentService) {
-        this.paymentService = paymentService;
+    private UserService userService;
 
-        // Load Stripe API key from the environment
-        Dotenv dotenv = Dotenv.configure()
-                .directory("src/main/resources")
-                .filename(".env")
-                .load();
+    public PaymentController() {
+        Dotenv dotenv = Dotenv.configure().directory("src/main/resources").filename(".env").load();
         this.stripeSecretKey = dotenv.get("STRIPE_API_KEY");
-        Stripe.apiKey = this.stripeSecretKey; // Set Stripe API key globally
+        this.sendGridApiKey = dotenv.get("SENDGRID_API_KEY");
+        this.sendGrid = new SendGrid(sendGridApiKey);
     }
 
-    /**
-     * Create a payment intent for a transaction.
-     * @param requestBody Request containing payment amount and currency.
-     * @return Client secret for the created payment intent.
-     */
     @PostMapping("/create-payment-intent")
-    public ResponseEntity<Map<String, String>> createPaymentIntent(@RequestBody Map<String, Object> requestBody) {
+    public ResponseEntity<?> createPaymentIntent(@RequestBody Map<String, Object> requestBody) {
         try {
             Stripe.apiKey = stripeSecretKey;
 
@@ -58,80 +64,127 @@ public class PaymentController {
 
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
                     .setAmount((long) amount)
-                    .setCurrency(currency)
+                    .setCurrency("usd")
                     .build();
 
-            // Create the payment intent using Stripe API
             PaymentIntent paymentIntent = PaymentIntent.create(params);
 
-            // Prepare the response
             Map<String, String> responseData = new HashMap<>();
             responseData.put("clientSecret", paymentIntent.getClientSecret());
 
             return ResponseEntity.ok(responseData);
         } catch (Exception e) {
-            e.printStackTrace(); // Log error for debugging
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to create payment intent: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to create payment intent: " + e.getMessage()));
         }
     }
 
-    /**
-     * Save a new payment method.
-     * @param paymentDTO Data Transfer Object containing payment details.
-     * @return Response indicating success or failure.
-     */
-    @PostMapping("/save")
-    public ResponseEntity<Payment> savePaymentMethod(@RequestBody PaymentDTO paymentDTO) {
+    @PostMapping("/create-registration-payment-intent")
+    public ResponseEntity<?> createRegistrationPaymentIntent(@RequestBody Map<String, String> requestBody) {
         try {
-            Payment savedPayment = paymentService.savePayment(paymentDTO);
-            return ResponseEntity.ok(savedPayment);
+            Stripe.apiKey = stripeSecretKey;
+
+            if (!validatePaymentRequest(requestBody)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing or invalid payment parameters"));
+            }
+
+            int amount = 2000;
+            String currency = "usd";
+
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                    .setAmount((long) amount)
+                    .setCurrency(currency)
+                    .build();
+
+            PaymentIntent paymentIntent = PaymentIntent.create(params);
+
+            Map<String, String> responseData = new HashMap<>();
+            responseData.put("clientSecret", paymentIntent.getClientSecret());
+            return ResponseEntity.ok(responseData);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(null);
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to create registration payment intent: " + e.getMessage()));
         }
     }
 
-    /**
-     * Retrieve all saved payment methods for a user.
-     * @param userId ID of the user.
-     * @return List of Payment entities.
-     */
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<Payment>> getPaymentMethods(@PathVariable int userId) {
+    private boolean validatePaymentRequest(Map<String, String> requestBody) {
+        return requestBody != null &&
+                requestBody.containsKey("email") &&
+                requestBody.containsKey("name") &&
+                requestBody.containsKey("password");
+    }
+
+    @PostMapping("/confirm-registration")
+    public ResponseEntity<?> confirmRegistration(@RequestBody Map<String, String> requestBody) {
         try {
-            List<Payment> payments = paymentService.getPaymentsByUserId(userId);
-            return ResponseEntity.ok(payments);
+            if (!requestBody.containsKey("name") ||
+                    !requestBody.containsKey("email") ||
+                    !requestBody.containsKey("password")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Name, email, and password are required"));
+            }
+
+            User newUser = new User();
+            newUser.setName(requestBody.get("name"));
+            newUser.setEmail(requestBody.get("email"));
+            newUser.setPassword(requestBody.get("password"));
+            newUser.setGuest(false);
+
+            userService.registerUser(newUser);
+
+            return ResponseEntity.ok(Map.of("message", "Registration successful"));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to confirm registration: " + e.getMessage()));
         }
     }
 
     @PostMapping("/send-confirmation-email")
     public ResponseEntity<?> sendConfirmationEmail(@RequestBody Map<String, Object> requestBody) {
         try {
-            User currentUser = userService.getCurrentUser();
-            if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("error", "User not authenticated"));
+            if (requestBody == null || !requestBody.containsKey("email") || !requestBody.containsKey("name")) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Email and name are required"));
             }
 
+            String recipientEmail = (String) requestBody.get("email");
+            String recipientName = (String) requestBody.get("name");
             int seatCount = requestBody.get("seatCount") != null ? ((Number) requestBody.get("seatCount")).intValue()
                     : 1;
 
             String subject = "Your Movie Ticket Purchase Confirmation";
-            String content = String.format(
+            String contentText = String.format(
                     "Hello %s,\n\n" +
                             "Thank you for your purchase!\n" +
                             "You have successfully purchased %d ticket(s).\n\n" +
                             "Please arrive at least 15 minutes before your showtime.\n\n" +
                             "Best regards,\nThe Cinema Team",
-                    currentUser.getName(),
+                    recipientName,
                     seatCount);
 
-            sendEmail(currentUser.getEmail(), subject, content);
+            Email from = new Email("mcharbe439@gmail.com");
+            Email to = new Email(recipientEmail);
+            Content content = new Content("text/plain", contentText);
+            Mail mail = new Mail(from, subject, to, content);
+
+            Request request = new Request();
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+
+            Response response = sendGrid.api(request);
+
+            if (response.getStatusCode() >= 400) {
+                throw new IOException("Failed to send email. Status code: " + response.getStatusCode());
+            }
 
             return ResponseEntity.ok(Map.of("message", "Email sent successfully"));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error using saved payment method: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to send confirmation email: " + e.getMessage()));
         }
     }
 }

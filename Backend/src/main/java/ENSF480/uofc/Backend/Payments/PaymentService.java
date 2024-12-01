@@ -7,14 +7,9 @@ import java.util.List;
 
 @Service
 public class PaymentService {
-
     @Autowired
     private PaymentRepository paymentRepository;
 
-    /**
-     * Save a new payment method to the database.
-     * @param paymentDTO Data Transfer Object containing payment details.
-     */
     public Payment savePayment(PaymentDTO paymentDTO) {
         Payment payment = new Payment();
         payment.setUserId(paymentDTO.getUserId());
@@ -23,6 +18,7 @@ public class PaymentService {
         payment.setExpirationDate(paymentDTO.getExpirationDate());
         return paymentRepository.save(payment);
     }
+
 
     /**
      * Retrieve all saved payment methods for a specific user.
