@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import axios from "axios";
@@ -12,9 +12,39 @@ const PaymentForm = () => {
   const { selectedSeats, totalCost, userId, guestEmail } = location.state || {};
   const [loading, setLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
-  // Handle Payment Submission
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await axios.get("http://localhost:8080/api/users/me", {
+          withCredentials: true
+        });
+        setCurrentUser(response.data);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        setPaymentError("Unable to retrieve user information. Please log in again.");
+        navigate("/login");
+      }
+    };
+
+    fetchCurrentUser();
+  }, [navigate]);
+
+  const handleSeatReservation = async () => {
+    try {
+      await axios.post("http://localhost:8080/api/seats/book", {
+        seatIds: selectedSeats,
+        userId: userId,
+        email: guestEmail || currentUser?.email
+      }, {
+        withCredentials: true
+      });
+    } catch (error) {
+      throw new Error("Failed to reserve seats after payment");
+    }
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     setPaymentError("");
@@ -28,60 +58,67 @@ const PaymentForm = () => {
 
     const cardElement = elements.getElement(CardElement);
 
+    if (!cardElement) {
+      setPaymentError("Card details are missing. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Create payment intent on the backend
       const paymentIntentResponse = await axios.post(
         "http://localhost:8080/api/payments/create-payment-intent",
         {
-          amount: totalCost * 100, // Convert to cents
+          amount: Math.round(totalCost * 100),
           currency: "usd",
+          email: guestEmail || currentUser?.email,
+        },
+        {
+          withCredentials: true
         }
       );
 
       const { clientSecret } = paymentIntentResponse.data;
 
-      // Confirm the payment
       const paymentResult = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
           billing_details: {
-            email: guestEmail || "registered_user@example.com", // For guests or registered users
+            email: guestEmail || currentUser?.email,
+            name: currentUser?.name,
           },
         },
       });
 
       if (paymentResult.error) {
         setPaymentError(paymentResult.error.message);
-        setLoading(false);
-      } else {
-        if (paymentResult.paymentIntent.status === "succeeded") {
-          // Book the seats after payment success
-          console.log("Booking payload:", {
-            seatIds: selectedSeats,
-            userId,
-            email: guestEmail || null,
-          });
+      } else if (paymentResult.paymentIntent.status === "succeeded") {
+        console.log("Payment succeeded!");
 
-          await axios.post("http://localhost:8080/api/seats/book", {
-            seatIds: selectedSeats,
-            userId,
-            email: guestEmail || null,
-          });
+        // Reserve seats after successful payment
+        await handleSeatReservation();
 
-          setPaymentSuccess(true);
+        try {
+          await axios.post("http://localhost:8080/api/payments/send-confirmation-email", {
+            email: guestEmail || currentUser?.email,
+            name: currentUser?.name,
+            seatCount: selectedSeats.length
+          }, {
+            withCredentials: true
+          });
+          navigate("/confirmation");
+        } catch (emailError) {
+          console.error("Email Error:", emailError);
           navigate("/confirmation", {
-            state: {
-              selectedSeats,
-              totalCost,
-              userId,
-              guestEmail,
-            },
+            state: { emailError: "Payment successful but confirmation email could not be sent." }
           });
         }
       }
     } catch (error) {
-      setPaymentError("An error occurred while processing your payment. Please try again.");
-      console.error("Payment error:", error);
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        "An error occurred while processing your payment";
+      setPaymentError(errorMessage);
+      console.error("Payment Error:", error);
     } finally {
       setLoading(false);
     }
@@ -105,11 +142,8 @@ const PaymentForm = () => {
           </div>
           <button
             type="submit"
-            className={`w-full py-2 rounded-lg text-white font-bold ${
-              loading
-                ? "bg-gray-600 cursor-not-allowed"
-                : "bg-yellow-500 hover:bg-yellow-600"
-            }`}
+            className={`w-full py-2 rounded-lg text-white font-bold ${loading ? "bg-gray-600 cursor-not-allowed" : "bg-yellow-500 hover:bg-yellow-600"
+              }`}
             disabled={loading}
           >
             {loading ? "Processing..." : `Pay $${totalCost}`}
