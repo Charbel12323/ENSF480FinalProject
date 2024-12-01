@@ -5,70 +5,72 @@ import ENSF480.uofc.Backend.Payments.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-// import java.math.BigDecimal;
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 
 @Service
 public class TransactionService {
-
     @Autowired
     private TransactionRepository transactionRepository;
 
     @Autowired
     private PaymentRepository paymentRepository;
 
-    /**
-     * Create a new transaction.
-     * @param transactionDTO Data Transfer Object containing transaction details.
-     * @return The created Transaction entity.
-     */
-    public Transaction createTransaction(TransactionDTO transactionDTO) {
-        // Retrieve the payment method used for the transaction
-        Optional<Payment> paymentOptional = paymentRepository.findById(transactionDTO.getPaymentId());
 
-        if (paymentOptional.isEmpty()) {
-            throw new IllegalArgumentException("Payment method not found for ID: " + transactionDTO.getPaymentId());
+    public Transaction createTransaction(TransactionDTO transactionDTO) {
+        // Validate required fields
+        if (transactionDTO.getTotalAmount() == null || transactionDTO.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Total amount must be greater than zero");
+        }
+        
+        if (transactionDTO.getCurrency() == null || transactionDTO.getCurrency().trim().isEmpty()) {
+            throw new IllegalArgumentException("Currency is required");
         }
 
-        Payment payment = paymentOptional.get();
+        try {
+            Transaction transaction = new Transaction();
+            
+            // Set user ID if provided (might be null for guest/registration transactions)
+            transaction.setUserId(transactionDTO.getUserId());
+            
+            // Set the required fields
+            transaction.setTotalAmount(transactionDTO.getTotalAmount());
+            transaction.setCurrency(transactionDTO.getCurrency().toLowerCase());
+            
+            // Always start with pending status
+            transaction.setTransactionStatus("pending");
+            
+            // Payment will be set later when the transaction is completed
+            transaction.setPayment(null);
 
-        // Create a new Transaction entity
-        Transaction transaction = new Transaction();
-        transaction.setUserId(transactionDTO.getUserId());
-        transaction.setPayment(payment);
-        transaction.setTotalAmount(transactionDTO.getTotalAmount());
-        transaction.setCurrency(transactionDTO.getCurrency());
-        transaction.setTransactionStatus("pending"); // Default status is 'pending'
-
-        // Save the transaction to the database
-        return transactionRepository.save(transaction);
+            return transactionRepository.save(transaction);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create transaction: " + e.getMessage(), e);
+        }
     }
 
-    /**
-     * Update the status of a transaction.
-     * @param transactionId ID of the transaction to update.
-     * @param status New status for the transaction (e.g., success, failed).
-     */
-    public void updateTransactionStatus(int transactionId, String status) {
-        Optional<Transaction> transactionOptional = transactionRepository.findById(transactionId);
+    public void updateTransactionStatus(int transactionId, String status, Integer paymentId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+            .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + transactionId));
 
-        if (transactionOptional.isEmpty()) {
-            throw new IllegalArgumentException("Transaction not found for ID: " + transactionId);
+        transaction.setTransactionStatus(status);
+        
+        if ("success".equalsIgnoreCase(status)) {
+            if (paymentId != null && paymentId != 0) {
+                Payment payment = paymentRepository.findById(paymentId)
+                    .orElseThrow(() -> new IllegalArgumentException("Payment not found: " + paymentId));
+                transaction.setPayment(payment);
+            }
+        } else if ("failed".equalsIgnoreCase(status)) {
+            transaction.setPayment(null);
+        } else {
+            throw new IllegalArgumentException("Invalid transaction status: " + status);
         }
 
-        Transaction transaction = transactionOptional.get();
-        transaction.setTransactionStatus(status);
-
-        // Save the updated transaction to the database
         transactionRepository.save(transaction);
     }
 
-    /**
-     * Retrieve all transactions for a specific user.
-     * @param userId ID of the user.
-     * @return List of transactions for the user.
-     */
     public List<Transaction> getTransactionsByUserId(int userId) {
         return transactionRepository.findByUserId(userId);
     }

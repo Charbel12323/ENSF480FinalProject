@@ -15,13 +15,14 @@ import ENSF480.uofc.Backend.users.UserService;
 import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
-
+import java.util.List;
 import com.sendgrid.Method;
 import com.sendgrid.Request;
 import com.sendgrid.Response;
 import com.sendgrid.SendGrid;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,10 +37,80 @@ public class PaymentController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private PaymentService paymentService;
+
+
     public PaymentController() {
         Dotenv dotenv = Dotenv.configure().directory("src/main/resources").filename(".env").load();
         this.stripeSecretKey = dotenv.get("STRIPE_API_KEY");
         this.sendGridApiKey = dotenv.get("SENDGRID_API_KEY");
+    }
+
+    @PostMapping("/save-payment-method")
+    public ResponseEntity<?> savePaymentMethod(@RequestBody Map<String, Object> requestBody) {
+        try {
+            User currentUser = userService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User not authenticated"));
+            }
+    
+            // Extract payment method details from the request
+            String paymentMethodId = (String) requestBody.get("paymentMethodId");
+            String last4 = (String) requestBody.get("last4");
+            String expirationMonth = (String) requestBody.get("expirationMonth");
+            String expirationYear = (String) requestBody.get("expirationYear");
+    
+            if (paymentMethodId == null || last4 == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing payment method details"));
+            }
+    
+            // Create expiration date
+            LocalDate expirationDate = LocalDate.of(
+                Integer.parseInt(expirationYear),
+                Integer.parseInt(expirationMonth),
+                1
+            );
+    
+            // Create PaymentDTO
+            PaymentDTO paymentDTO = new PaymentDTO();
+            paymentDTO.setUserId(currentUser.getUserId());
+            paymentDTO.setPaymentMethodId(paymentMethodId);
+            paymentDTO.setCardLastFourDigits(last4);
+            paymentDTO.setExpirationDate(expirationDate);
+    
+            // Save payment method and get the saved payment
+            Payment savedPayment = paymentService.savePayment(paymentDTO);
+    
+            // Return both the success message and the payment ID
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Payment method saved successfully");
+            response.put("paymentId", savedPayment.getPaymentId());  // Assuming your Payment entity has getId() method
+    
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to save payment method: " + e.getMessage()));
+        }
+    }
+
+    @GetMapping("/payment-methods")
+    public ResponseEntity<?> getPaymentMethods() {
+        try {
+            User currentUser = userService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "User not authenticated"));
+            }
+
+            List<Payment> payments = paymentService.getPaymentsByUserId(currentUser.getUserId());
+            return ResponseEntity.ok(payments);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Failed to fetch payment methods: " + e.getMessage()));
+        }
     }
 
     @PostMapping("/create-payment-intent")

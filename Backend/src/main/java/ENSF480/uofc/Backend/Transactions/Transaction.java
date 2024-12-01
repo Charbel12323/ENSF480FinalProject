@@ -16,9 +16,9 @@ public class Transaction {
     @Column(nullable = false)
     private int userId; // Links the transaction to a specific user
 
-    @ManyToOne
-    @JoinColumn(name = "payment_id", nullable = false)
-    private Payment payment; // Links the transaction to a saved payment method
+    @ManyToOne(optional = true)  // Mark the relationship as optional
+    @JoinColumn(name = "payment_id", nullable = true)  // Explicitly allow null values
+    private Payment payment;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount; // Total amount for the transaction

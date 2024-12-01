@@ -3,7 +3,7 @@ package ENSF480.uofc.Backend.users;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.util.Map;
 import jakarta.servlet.http.HttpSession;
 
 import java.util.Optional;
@@ -34,10 +34,16 @@ public class UserController {
     }
     
     @PostMapping("/guest")
-    public ResponseEntity<User> continueAsGuest(HttpSession session) {
+    public ResponseEntity<User> continueAsGuest(@RequestBody Map<String, String> requestBody, HttpSession session) {
+        String email = requestBody.get("email");
+    
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body(null); // Handle missing email
+        }
+    
         User guestUser = new User();
         guestUser.setName("Guest");
-        guestUser.setEmail("guest@example.com");
+        guestUser.setEmail(email);
         guestUser.setPassword("guest");
         guestUser.setGuest(true);
     
@@ -48,20 +54,21 @@ public class UserController {
     }
     
     
+    
     @GetMapping("/me")
     public ResponseEntity<UserDTO> getCurrentUser(HttpSession session) {
         Integer userId = (Integer) session.getAttribute("userId");
-    
+
         if (userId == null) {
             return ResponseEntity.status(401).body(null); // No user in session
         }
-    
+
         User currentUser = userService.findById(userId).orElse(null);
-    
+
         if (currentUser == null) {
             return ResponseEntity.status(401).body(null);
         }
-    
+
         UserDTO userDTO = new UserDTO(currentUser.getUserId(), currentUser.getName(), currentUser.getEmail(), currentUser.isGuest());
         return ResponseEntity.ok(userDTO);
     }

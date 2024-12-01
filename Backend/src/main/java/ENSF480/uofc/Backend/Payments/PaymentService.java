@@ -15,7 +15,7 @@ public class PaymentService {
      * Save a new payment method to the database.
      * @param paymentDTO Data Transfer Object containing payment details.
      */
-    public void savePayment(PaymentDTO paymentDTO) {
+    public Payment savePayment(PaymentDTO paymentDTO) {
         // Create a new Payment entity
         Payment payment = new Payment();
         payment.setUserId(paymentDTO.getUserId());
@@ -25,6 +25,7 @@ public class PaymentService {
 
         // Save the payment entity to the database
         paymentRepository.save(payment);
+        return payment;
     }
 
     /**

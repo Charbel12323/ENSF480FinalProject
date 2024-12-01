@@ -13,12 +13,13 @@ const PaymentForm = () => {
   const [loading, setLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [saveCard, setSaveCard] = useState(false); // New state for saving card option
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
         const response = await axios.get("http://localhost:8080/api/users/me", {
-          withCredentials: true
+          withCredentials: true,
         });
         setCurrentUser(response.data);
       } catch (error) {
@@ -46,9 +47,7 @@ const PaymentForm = () => {
       return;
     }
 
-    const userInfo = isRegistration
-      ? location.state
-      : currentUser;
+    const userInfo = isRegistration ? location.state : currentUser;
 
     if (!userInfo?.name || !userInfo?.email) {
       setPaymentError("User information is missing. Please ensure you are logged in.");
@@ -64,7 +63,41 @@ const PaymentForm = () => {
       return;
     }
 
+    let transactionId;
+
     try {
+      // Create initial transaction record
+      const transactionResponse = await axios.post(
+        "http://localhost:8080/api/transaction/create",
+        {
+          userId: currentUser.id,
+          totalAmount: totalCost,
+          currency: "usd",
+          transactionStatus: "pending",
+        },
+        { withCredentials: true }
+      );
+      transactionId = transactionResponse.data.transactionId;
+
+      // Create payment method if the user opts to save the card
+      let paymentMethod;
+      if (saveCard && !isRegistration) {
+        const { error, paymentMethod: stripePaymentMethod } = await stripe.createPaymentMethod({
+          type: "card",
+          card: cardElement,
+          billing_details: {
+            email: userInfo.email,
+            name: userInfo.name,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+        paymentMethod = stripePaymentMethod;
+      }
+
+      // Create payment intent
       const paymentIntentResponse = await axios.post(
         isRegistration
           ? "http://localhost:8080/api/payments/create-registration-payment-intent"
@@ -76,38 +109,66 @@ const PaymentForm = () => {
           email: userInfo.email,
           password: isRegistration ? userInfo.password : undefined,
         },
-        {
-          withCredentials: true
-        }
+        { withCredentials: true }
       );
 
       const { clientSecret } = paymentIntentResponse.data;
 
+      // Confirm payment
       const paymentResult = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: {
-            email: userInfo.email,
-            name: userInfo.name,
-          },
-        },
+        payment_method: paymentMethod
+          ? paymentMethod.id
+          : {
+              card: cardElement,
+              billing_details: {
+                email: userInfo.email,
+                name: userInfo.name,
+              },
+            },
       });
 
       if (paymentResult.error) {
-        setPaymentError(paymentResult.error.message);
-        setLoading(false);
-      } else if (paymentResult.paymentIntent.status === "succeeded") {
+        throw paymentResult.error;
+      }
+
+      if (paymentResult.paymentIntent.status === "succeeded") {
         console.log("Payment succeeded!");
+
+        // Save the card if applicable
+        if (saveCard && paymentMethod && !isRegistration) {
+          const paymentResponse = await axios.post(
+            "http://localhost:8080/api/payments/save-payment-method",
+            {
+              paymentMethodId: paymentMethod.id,
+              last4: paymentMethod.card.last4,
+              expirationMonth: paymentMethod.card.exp_month.toString(),
+              expirationYear: paymentMethod.card.exp_year.toString(),
+            },
+            { withCredentials: true }
+          );
+          console.log(paymentResponse.data);
+          // Update transaction with payment success and payment ID
+          await axios.put(
+            `http://localhost:8080/api/transaction/${transactionId}/status`,
+            {
+              status: "success",
+              paymentId: paymentResponse.data.paymentId,
+            },
+            { withCredentials: true }
+          );
+        }
 
         if (isRegistration) {
           try {
-            await axios.post("http://localhost:8080/api/payments/confirm-registration", {
-              name: userInfo.name,
-              email: userInfo.email,
-              password: userInfo.password,
-            }, {
-              withCredentials: true
-            });
+            await axios.post(
+              "http://localhost:8080/api/payments/confirm-registration",
+              {
+                name: userInfo.name,
+                email: userInfo.email,
+                password: userInfo.password,
+              },
+              { withCredentials: true }
+            );
             navigate("/login");
           } catch (registrationError) {
             console.error("Registration Error:", registrationError);
@@ -115,29 +176,24 @@ const PaymentForm = () => {
           }
         } else {
           try {
-            // Book seats first
-            await axios.post("http://localhost:8080/api/seats/book", {
-              seatIds: selectedSeats,
-              userId: currentUser.id,
-              email: userInfo.email
-            }, {
-              withCredentials: true
-            });
+            await axios.post(
+              "http://localhost:8080/api/seats/book",
+              {
+                seatIds: selectedSeats,
+                userId: currentUser.id,
+                email: userInfo.email,
+              },
+              { withCredentials: true }
+            );
 
-            // Send confirmation email
             await axios.post(
               "http://localhost:8080/api/payments/send-confirmation-email",
               {
                 email: userInfo.email,
                 name: userInfo.name,
-                seatCount: selectedSeats.length || seatCount || 1
+                seatCount: selectedSeats.length || seatCount || 1,
               },
-              {
-                withCredentials: true,
-                headers: {
-                  'Content-Type': 'application/json'
-                }
-              }
+              { withCredentials: true, headers: { "Content-Type": "application/json" } }
             );
 
             navigate("/confirmation");
@@ -146,8 +202,8 @@ const PaymentForm = () => {
             if (error.response?.status === 500) {
               navigate("/confirmation", {
                 state: {
-                  emailError: "Payment and seat reservation successful, but confirmation email could not be sent."
-                }
+                  emailError: "Payment and seat reservation successful, but confirmation email could not be sent.",
+                },
               });
             } else {
               setPaymentError("An error occurred after payment. Please contact support.");
@@ -156,9 +212,24 @@ const PaymentForm = () => {
         }
       }
     } catch (error) {
-      const errorMessage = error.response?.data?.message ||
-        error.message ||
-        "An error occurred while processing your payment";
+      // Update transaction to failed status
+      if (transactionId) {
+        try {
+          await axios.put(
+            `http://localhost:8080/api/transaction/${transactionId}/status`,
+            {
+              status: "failed",
+              paymentId: null,
+            },
+            { withCredentials: true }
+          );
+        } catch (updateError) {
+          console.error("Error updating transaction status:", updateError);
+        }
+      }
+
+      const errorMessage =
+        error.response?.data?.message || error.message || "An error occurred while processing your payment";
       setPaymentError(errorMessage);
       console.error("Payment Error:", error);
     } finally {
@@ -171,14 +242,10 @@ const PaymentForm = () => {
       <div className="w-full max-w-md bg-gray-800 rounded-lg p-6 shadow-md">
         <h2 className="text-2xl font-bold text-yellow-400 mb-6">Payment Details</h2>
         {paymentError && (
-          <div className="mb-4 p-3 bg-red-600 rounded-md text-white">
-            {paymentError}
-          </div>
+          <div className="mb-4 p-3 bg-red-600 rounded-md text-white">{paymentError}</div>
         )}
         {!isRegistration && !currentUser && (
-          <div className="mb-4 p-3 bg-yellow-600 rounded-md text-white">
-            Loading user information...
-          </div>
+          <div className="mb-4 p-3 bg-yellow-600 rounded-md text-white">Loading user information...</div>
         )}
         <form onSubmit={handlePaymentSubmit}>
           <div className="mb-6">
@@ -187,12 +254,26 @@ const PaymentForm = () => {
               <CardElement />
             </div>
           </div>
+          {!isRegistration && (
+            <div className="mb-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={saveCard}
+                  onChange={(e) => setSaveCard(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-gray-300">Save card for future purchases</span>
+              </label>
+            </div>
+          )}
           <button
             type="submit"
-            className={`w-full py-2 rounded-lg text-white font-bold ${loading || (!isRegistration && !currentUser)
+            className={`w-full py-2 rounded-lg text-white font-bold ${
+              loading || (!isRegistration && !currentUser)
                 ? "bg-gray-600 cursor-not-allowed"
                 : "bg-yellow-500 hover:bg-yellow-600"
-              }`}
+            }`}
             disabled={loading || (!isRegistration && !currentUser)}
           >
             {loading ? "Processing..." : `Pay $${totalCost}`}
