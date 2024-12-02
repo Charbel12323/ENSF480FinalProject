@@ -213,7 +213,7 @@ const PaymentForm = () => {
               }
             );
 
-            navigate("/");
+            navigate("/MoviePage");
           } catch (error) {
             console.error("Post-payment Error:", error);
             navigate("/MoviePage", {

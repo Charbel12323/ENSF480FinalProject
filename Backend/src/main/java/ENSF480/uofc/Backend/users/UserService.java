@@ -38,4 +38,8 @@ public class UserService {
     public Optional<User> findById(Integer id) {
         return userRepository.findById(id);
     }
+
+    public User getUserById(int id) {
+        return userRepository.findById(id).orElse(null);
+    }
 }

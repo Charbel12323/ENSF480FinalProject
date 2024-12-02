@@ -108,7 +108,7 @@ const Navbar = ({ userId }) => {
             </div>
             <div>
                 <Link to={`/account/${userId}`} className="hover:text-yellow-500 transition duration-300">
-                    <span className="material-icons text-3xl">account_circle</span>
+                    <span className="material-icons text-3xl">MyAccount</span>
                 </Link>
             </div>
         </nav>
