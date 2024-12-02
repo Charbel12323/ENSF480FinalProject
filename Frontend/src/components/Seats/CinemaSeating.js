@@ -18,23 +18,21 @@ const CinemaSeatMap = () => {
 
   const seatPrice = 12;
 
-  // Fetch seats and user information
   useEffect(() => {
     const fetchSeatsAndUser = async () => {
       try {
-        // Fetch seats for the selected showtime
         const showid = showtime.showtimeId;
+
         const seatResponse = await axios.get(
           `http://localhost:8080/api/seats/${showid}`
         );
         setSeats(seatResponse.data);
 
-        // Fetch user data to check if they are a guest
         const userResponse = await axios.get(
           "http://localhost:8080/api/users/me"
         );
         setIsGuest(userResponse.data.guest);
-        setUserId(userResponse.data.id); // Store user ID for booking
+        setUserId(userResponse.data.id);
         setEmail(userResponse.data.email);
       } catch (error) {
         console.error("Error fetching seats or user data:", error);
@@ -44,15 +42,13 @@ const CinemaSeatMap = () => {
     fetchSeatsAndUser();
   }, [showtime]);
 
-  // Toggle seat selection
-  const toggleSeat = (seatId, isReserved, seatUserId) => {
+  const toggleSeat = (seatId, isReservedForRegisteredUsers, seatUserId) => {
     if (seatUserId !== undefined && seatUserId !== null && seatUserId !== 0) {
-      console.warn("Cannot select unavailable seats!");
+      console.warn("Cannot select booked seats!");
       return;
     }
 
-    if (isReserved && isGuest) {
-      // Guests cannot select reserved seats
+    if (isReservedForRegisteredUsers && isGuest) {
       console.warn("Guests cannot select reserved seats!");
       return;
     }
@@ -65,9 +61,7 @@ const CinemaSeatMap = () => {
   };
 
   const totalCost = selectedSeats.length * seatPrice;
-  console.log(seats);
-  console.log(movie);
-  // Handle Proceed to Payment
+
   const handleProceedToPayment = () => {
     setBookingError("");
 
@@ -76,13 +70,13 @@ const CinemaSeatMap = () => {
       return;
     }
 
-    // Navigate to payment page with necessary details
     navigate("/payment", {
       state: {
         selectedSeats,
         totalCost,
         userId: userId,
         guestEmail: isGuest ? guestEmail : email,
+        showtimeId: showtime?.showtimeId,
       },
     });
   };
@@ -90,29 +84,30 @@ const CinemaSeatMap = () => {
   const columns = [
     { colNum: 1, label: "A" },
     { colNum: 2, label: "B" },
-    undefined, // Gap
+    undefined,
     { colNum: 3, label: "C" },
     { colNum: 4, label: "D" },
-    undefined, // Gap
+    undefined,
     { colNum: 5, label: "E" },
     { colNum: 6, label: "F" },
   ];
+
+
+
+
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex p-8 gap-6">
       {/* Left Panel */}
       <div className="flex flex-col w-1/4">
-        {/* Back to Main Button */}
         <button
           className="mb-4 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg"
           onClick={() => navigate("/")}
         >
           Back to Main
         </button>
-
-        {/* Movie Details Card */}
         <div className="bg-gray-800 rounded-lg p-6 shadow-md">
-        
           <img
             src={`http://localhost:8080${movie.imagePath}`}
             alt={movie.title}
@@ -137,16 +132,12 @@ const CinemaSeatMap = () => {
         </div>
       </div>
 
-      {/* Center Panel: Seat Map */}
+      {/* Center Panel */}
       <div className="flex-grow flex flex-col items-center justify-center">
-        {/* Screen */}
         <div className="w-full bg-gray-700 text-center py-2 rounded-lg mb-4 shadow-md">
           <span className="text-lg font-semibold text-gray-300">SCREEN</span>
         </div>
-
-        {/* Seat Map */}
         <div className="grid grid-cols-[auto_repeat(2,2rem)_1rem_repeat(2,2rem)_1rem_repeat(2,2rem)_auto] gap-2">
-          {/* Column Labels */}
           <div></div>
           {columns.map((col, index) =>
             col ? (
@@ -162,73 +153,52 @@ const CinemaSeatMap = () => {
           )}
           <div></div>
 
-          {/* Seat Rows */}
           {[1, 2, 3, 4, 5].map((rowNumber) => (
             <React.Fragment key={rowNumber}>
-              {/* Row Labels */}
               <div className="text-center text-gray-400 font-medium">
                 {rowNumber}
               </div>
-
-              {/* Seat Buttons */}
               {columns.map((col, index) => {
-                if (!col) {
-                  // Gap in the middle
-                  return <div key={`gap-${index}`} className="w-4"></div>;
-                }
+                if (!col) return <div key={`gap-${index}`} className="w-4"></div>;
 
                 const seatColumnNumber = col.colNum;
-                const rowLetter = String.fromCharCode(64 + rowNumber); // Convert row number to letter (1 -> 'A')
-
+                const rowLetter = String.fromCharCode(64 + rowNumber);
                 const seat = seats.find(
                   (s) =>
                     s.rowNum === rowLetter &&
                     s.columnNumber === seatColumnNumber
                 );
 
-                if (!seat)
-                  return (
-                    <div key={`empty-${index}`} className="w-8 h-8"></div>
-                  );
+                if (!seat) return <div key={`empty-${index}`} className="w-8 h-8"></div>;
 
                 const isSeatSelected = selectedSeats.includes(seat.seatId);
-                const seatUserId = seat.userId; // Adjust if property name is different
-                const isSeatUnavailable =
-                  seatUserId !== undefined &&
-                  seatUserId !== null &&
-                  seatUserId !== 0;
-                const isSeatReserved = seat.reserved;
+                const isSeatBooked = seat.userId !== undefined && seat.userId !== null && seat.userId !== 0;
+                const isSeatReservedForRegisteredUsers = seat.isReserved;
 
                 return (
                   <motion.button
                     key={seat.seatId}
-                    className={`w-8 h-8 rounded-lg ${
-                      isSeatUnavailable
-                        ? "bg-gray-700 cursor-not-allowed"
-                        : isSeatSelected
+                    className={`w-8 h-8 rounded-lg ${isSeatBooked || (isSeatReservedForRegisteredUsers && isGuest)
+                      ? "bg-gray-700 cursor-not-allowed"
+                      : isSeatSelected
                         ? "bg-blue-500"
-                        : isSeatReserved && isGuest
-                        ? "bg-gray-700 cursor-not-allowed"
-                        : isSeatReserved
-                        ? "bg-green-500"
-                        : "bg-white"
-                    }`}
-                    disabled={isSeatUnavailable || (isSeatReserved && isGuest)}
+                        : isSeatReservedForRegisteredUsers
+                          ? "bg-green-500"
+                          : "bg-white"
+                      }`}
+                    disabled={isSeatBooked || (isSeatReservedForRegisteredUsers && isGuest)}
                     onClick={() =>
-                      toggleSeat(seat.seatId, seat.reserved, seatUserId)
+                      toggleSeat(seat.seatId, isSeatReservedForRegisteredUsers, seat.userId)
                     }
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   />
                 );
               })}
-
               <div></div>
             </React.Fragment>
           ))}
         </div>
-
-        {/* Legend */}
         <div className="mt-4 flex justify-center space-x-6">
           <div className="flex items-center">
             <div className="w-4 h-4 bg-white border border-gray-500 mr-2"></div>
@@ -244,7 +214,7 @@ const CinemaSeatMap = () => {
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-gray-700 mr-2"></div>
-            <span className="text-gray-300">Unavailable</span>
+            <span className="text-gray-300">Unavailable (Booked)</span>
           </div>
         </div>
       </div>
@@ -292,18 +262,15 @@ const CinemaSeatMap = () => {
             />
           </div>
         )}
-        {bookingError && (
-          <p className="text-red-500 mb-4">{bookingError}</p>
-        )}
+        {bookingError && <p className="text-red-500 mb-4">{bookingError}</p>}
         <p className="text-lg font-semibold text-yellow-300">
           Total: ${totalCost}
         </p>
         <button
-          className={`mt-6 w-full py-2 rounded-lg text-white font-bold ${
-            selectedSeats.length > 0
-              ? "bg-yellow-500 hover:bg-yellow-600"
-              : "bg-gray-600 cursor-not-allowed"
-          }`}
+          className={`mt-6 w-full py-2 rounded-lg text-white font-bold ${selectedSeats.length > 0
+            ? "bg-yellow-500 hover:bg-yellow-600"
+            : "bg-gray-600 cursor-not-allowed"
+            }`}
           onClick={handleProceedToPayment}
           disabled={selectedSeats.length === 0}
         >
@@ -312,6 +279,6 @@ const CinemaSeatMap = () => {
       </div>
     </div>
   );
-};
 
+}
 export default CinemaSeatMap;

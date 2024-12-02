@@ -1,5 +1,3 @@
-// Step 1: Update the Seat Entity to Include Booking Logic
-
 package ENSF480.uofc.Backend.Seats;
 
 import ENSF480.uofc.Backend.Showtime.Showtime;
@@ -27,10 +25,10 @@ public class Seat {
     @JoinColumn(name = "showtime_id", nullable = false)
     private Showtime showtime;
 
-    @Column
+    @Column(name = "user_id")
     private Integer userId;
 
-    @Column
+    @Column(name = "reserved_at")
     @Temporal(TemporalType.TIMESTAMP)
     private Date reservedAt;
 
