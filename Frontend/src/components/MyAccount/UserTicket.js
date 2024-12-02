@@ -21,6 +21,17 @@ const UserTickets = ({ userId }) => {
         fetchTickets();
     }, [userId]);
 
+    const handleRefund = async (ticketId) => {
+        try {
+            await axios.delete(`http://localhost:8080/api/tickets/${ticketId}/refund`);
+            // Remove the refunded ticket from the state
+            setTickets(tickets.filter((ticket) => ticket.ticketId !== ticketId));
+            alert("Ticket refunded successfully.");
+        } catch (err) {
+            alert("Failed to refund ticket. Please try again.");
+        }
+    };
+
     if (loading) {
         return <div className="text-center mt-10 text-gray-400">Loading tickets...</div>;
     }
@@ -43,6 +54,13 @@ const UserTickets = ({ userId }) => {
                             <p><strong>Seat ID:</strong> {ticket.seatId}</p>
                             <p><strong>Purchase Date:</strong> {new Date(ticket.purchaseDate).toLocaleString()}</p>
                             <p><strong>Redeemed:</strong> {ticket.isRedeemed ? "Yes" : "No"}</p>
+                            <button
+                                className="mt-4 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+                                onClick={() => handleRefund(ticket.ticketId)}
+                                disabled={ticket.isRedeemed}
+                            >
+                                Refund
+                            </button>
                         </li>
                     ))}
                 </ul>

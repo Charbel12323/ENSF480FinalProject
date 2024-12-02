@@ -1,16 +1,22 @@
 package ENSF480.uofc.Backend.Tickets;
 
+import ENSF480.uofc.Backend.Seats.Seat;
+import ENSF480.uofc.Backend.Seats.SeatRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TicketService {
 
     @Autowired
     private TicketRepository ticketRepository;
+
+    @Autowired
+    private SeatRepository seatRepository;
 
     /**
      * Creates tickets for a list of seat IDs.
@@ -40,5 +46,37 @@ public class TicketService {
      */
     public List<Ticket> getTicketsByUserId(int userId) {
         return ticketRepository.findAllByUserId(userId);
+    }
+
+    /**
+     * Refunds a ticket by making the seat available and removing the ticket.
+     *
+     * @param ticketId The ID of the ticket to refund.
+     */
+    public void refundTicket(int ticketId) {
+        Optional<Ticket> optionalTicket = ticketRepository.findById(ticketId);
+        if (!optionalTicket.isPresent()) {
+            throw new IllegalArgumentException("Ticket not found.");
+        }
+
+        Ticket ticket = optionalTicket.get();
+
+        // Check if the ticket has been redeemed
+        if (ticket.isRedeemed()) {
+            throw new IllegalArgumentException("Cannot refund a redeemed ticket.");
+        }
+
+        // Make the seat available
+        Optional<Seat> optionalSeat = seatRepository.findById(ticket.getSeatId());
+        if (optionalSeat.isPresent()) {
+            Seat seat = optionalSeat.get();
+            seat.setReserved(false);
+            seat.setUserId(null); // Remove the user from the seat
+            seat.setReservedAt(null); // Clear the reservation time
+            seatRepository.save(seat);
+        }
+
+        // Remove the ticket
+        ticketRepository.delete(ticket);
     }
 }
