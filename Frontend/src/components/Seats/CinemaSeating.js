@@ -103,7 +103,7 @@ const CinemaSeatMap = () => {
       <div className="flex flex-col w-1/4">
         <button
           className="mb-4 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg"
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/MoviePage")}
         >
           Back to Main
         </button>
