@@ -1,101 +1,92 @@
-CREATE DATABASE ENSF480project;
-
-USE ENSF480project;
-
--- Users Table
-CREATE TABLE Users (
-    user_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    is_guest BOOLEAN DEFAULT FALSE
-);
-
--- Theatres Table
-CREATE TABLE Theatres (
-    theatre_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    place VARCHAR(100) NOT NULL
-);
-
--- Movies Table
-CREATE TABLE Movies (
-    movie_id INT AUTO_INCREMENT PRIMARY KEY,
+-- Create the movies table
+CREATE TABLE movies (
+    movie_id INT NOT NULL AUTO_INCREMENT,
     title VARCHAR(100) NOT NULL,
-    description TEXT,
-    image_path VARCHAR(255),
-    theatre_id INT,
-    FOREIGN KEY (theatre_id) REFERENCES Theatres(theatre_id) ON DELETE CASCADE
+    description TEXT DEFAULT NULL,
+    image_path VARCHAR(255) DEFAULT NULL,
+    is_announced TINYINT(1) NOT NULL DEFAULT 1,
+    PRIMARY KEY (movie_id)
 );
 
--- Showtimes Table
-CREATE TABLE Showtimes (
-    showtime_id INT AUTO_INCREMENT PRIMARY KEY,
-    movie_id INT,
-    theatre_id INT,
+-- Create the payments table
+CREATE TABLE payments (
+    payment_id INT NOT NULL AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    card_last_four_digits VARCHAR(4) DEFAULT NULL,
+    expiration_date DATE DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    payment_method_id VARCHAR(255) NOT NULL,
+    PRIMARY KEY (payment_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Create the users table
+CREATE TABLE users (
+    user_id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    is_guest TINYINT(1) DEFAULT 0,
+    PRIMARY KEY (user_id)
+);
+
+-- Create the theatres table
+CREATE TABLE theatres (
+    theatre_id INT NOT NULL AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    place VARCHAR(100) NOT NULL,
+    PRIMARY KEY (theatre_id)
+);
+
+-- Create the showtimes table
+CREATE TABLE showtimes (
+    showtime_id INT NOT NULL AUTO_INCREMENT,
+    movie_id INT DEFAULT NULL,
+    theatre_id INT DEFAULT NULL,
     showtime DATETIME NOT NULL,
-    FOREIGN KEY (movie_id) REFERENCES Movies(movie_id) ON DELETE CASCADE,
-    FOREIGN KEY (theatre_id) REFERENCES Theatres(theatre_id) ON DELETE CASCADE
+    PRIMARY KEY (showtime_id),
+    FOREIGN KEY (movie_id) REFERENCES movies(movie_id),
+    FOREIGN KEY (theatre_id) REFERENCES theatres(theatre_id)
 );
 
--- Seats Table
-CREATE TABLE Seats (
-    seat_id INT AUTO_INCREMENT PRIMARY KEY,
+-- Create the transactions table
+CREATE TABLE transactions (
+    transaction_id INT NOT NULL AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    payment_id INT DEFAULT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    currency VARCHAR(10) NOT NULL,
+    transaction_status VARCHAR(20) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (transaction_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    FOREIGN KEY (payment_id) REFERENCES payments(payment_id)
+);
+
+-- Create the tickets table
+CREATE TABLE tickets (
+    ticket_id INT NOT NULL AUTO_INCREMENT,
+    showtime_id INT DEFAULT NULL,
+    seat_id INT DEFAULT NULL,
+    user_id INT DEFAULT NULL,
+    is_redeemed TINYINT(1) DEFAULT 0,
+    purchase_date DATETIME(6) NOT NULL,
+    PRIMARY KEY (ticket_id),
+    FOREIGN KEY (showtime_id) REFERENCES showtimes(showtime_id),
+    FOREIGN KEY (seat_id) REFERENCES seats(seat_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- Create the seats table
+CREATE TABLE seats (
+    seat_id INT NOT NULL AUTO_INCREMENT,
     row_num VARCHAR(1) NOT NULL,
     column_number INT NOT NULL,
-    is_reserved TINYINT(1) DEFAULT 0,
-    showtime_id INT,
-    user_id INT,
-    FOREIGN KEY (showtime_id) REFERENCES Showtimes(showtime_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE SET NULL
+    is_reserved TINYINT(1) NOT NULL DEFAULT 0,
+    showtime_id INT NOT NULL,
+    user_id INT DEFAULT NULL,
+    reserved_at DATETIME DEFAULT NULL,
+    PRIMARY KEY (seat_id),
+    FOREIGN KEY (showtime_id) REFERENCES showtimes(showtime_id)
 );
-
--- Payments Table
--- Drop the Payments table if it exists
-DROP TABLE IF EXISTS Payments;
-
--- Create the Payments table
-CREATE TABLE Payments (
-    payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    payment_intent_id VARCHAR(255) UNIQUE NOT NULL, -- Stripe payment intent ID
-    card_last_four_digits VARCHAR(4), -- Last 4 digits of the card
-    expiration_date DATE, -- Optional, to display only in the UI
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp when the payment was created
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
-);
-
-CREATE TABLE Transactions (
-    transaction_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
-    payment_intent_id VARCHAR(255) UNIQUE NOT NULL,
-    card_last_four_digits VARCHAR(4),
-    transaction_status ENUM('pending', 'success', 'failed') DEFAULT 'pending',
-    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
-);
-
-
--- Tickets Table
-CREATE TABLE Tickets (
-    ticket_id INT AUTO_INCREMENT PRIMARY KEY,
-    showtime_id INT,
-    seat_id INT,
-    user_id INT,
-    is_redeemed BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (showtime_id) REFERENCES Showtimes(showtime_id) ON DELETE CASCADE,
-    FOREIGN KEY (seat_id) REFERENCES Seats(seat_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE
-);
-
-ALTER TABLE Payments 
-DROP COLUMN payment_intent_id,
-DROP COLUMN currency,
-DROP COLUMN is_active,
-DROP COLUMN card_number,
-DROP COLUMN cvv,
-DROP COLUMN stripe_payment_id;
-ALTER TABLE Payments MODIFY COLUMN payment_intent_id VARCHAR(255) NULL;
-ALTER TABLE Payments DROP COLUMN last_four_digits;
